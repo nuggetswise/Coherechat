@@ -17,6 +17,7 @@ from langchain_core.language_models import BaseLanguageModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from time import sleep
 from tenacity import retry, wait_exponential, stop_after_attempt
+from cohere import Client
 
 
 def init_session_state():
@@ -179,22 +180,61 @@ def create_fallback_agent(chat_model: BaseLanguageModel):
     return agent
 
 def process_query(vectorstore, query) -> tuple[str, list]:
-    """Process a query using RAG with fallback to web search."""
+    """Process a query using RAG with Cohere reranking and fallback to web search."""
     try:
         retriever = vectorstore.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "k": 10,
-                "score_threshold": 0.7
+                "k": 20,  # Get more candidates for reranking
+                "score_threshold": 0.5  # Lower threshold since we'll rerank
             }
         )
 
         relevant_docs = retriever.get_relevant_documents(query)
 
         if relevant_docs:
+            # Use Cohere's rerank API to improve search results
+            co = Client(api_key=st.session_state.cohere_api_key)
+            
+            # Prepare documents for reranking
+            docs_for_rerank = [doc.page_content for doc in relevant_docs]
+            
+            try:
+                # Rerank documents using Cohere
+                rerank_response = co.rerank(
+                    model="rerank-english-v3.0",
+                    query=query,
+                    documents=docs_for_rerank,
+                    top_k=5,  # Get top 5 after reranking
+                    return_documents=True
+                )
+                
+                # Use reranked documents
+                reranked_docs = []
+                for result in rerank_response.results:
+                    original_doc = relevant_docs[result.index]
+                    reranked_docs.append(original_doc)
+                
+                relevant_docs = reranked_docs
+                st.info(f"Found {len(relevant_docs)} relevant documents after reranking")
+                
+            except Exception as rerank_error:
+                st.warning(f"Reranking failed: {rerank_error}. Using standard similarity search.")
+            
+            # Generate response using reranked documents
             retrieval_qa_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
             combine_docs_chain = create_stuff_documents_chain(chat_model, retrieval_qa_prompt)
-            retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
+            
+            # Create a custom retriever that returns our reranked docs
+            class RerankedRetriever:
+                def get_relevant_documents(self, query):
+                    return relevant_docs
+                
+                def invoke(self, input_dict):
+                    return relevant_docs
+            
+            reranked_retriever = RerankedRetriever()
+            retrieval_chain = create_retrieval_chain(reranked_retriever, combine_docs_chain)
             response = retrieval_chain.invoke({"input": query})
             return response['answer'], relevant_docs
             
