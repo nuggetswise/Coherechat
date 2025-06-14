@@ -21,8 +21,8 @@ def get_openai_api_key():
     if not api_key and hasattr(st, "secrets"):
         if "OPENAI_API_KEY" in st.secrets:
             api_key = st.secrets["OPENAI_API_KEY"]
-        elif "openai" in st.secrets and "OPENAI_API_KEY" in st.secrets["openai"]:
-            api_key = st.secrets["openai"]["OPENAI_API_KEY"]
+        elif "openai" in st.secrets and "OPENAI_API_KEY" in st.secrets.openai:
+            api_key = st.secrets.openai["OPENAI_API_KEY"]
     
     return api_key
 
@@ -122,7 +122,7 @@ if api_key:
             st.session_state.messages = [
                 {"role": "assistant", "content": "Hello! How can I assist you today?"}
             ]
-            st.experimental_rerun()
+            st.rerun()  # Updated from st.experimental_rerun()
 else:
     st.info("Please provide an OpenAI API key to start chatting.", icon="ℹ️")
 
