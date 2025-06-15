@@ -531,6 +531,8 @@ if query := st.chat_input("Ask a question about your documents or anything else.
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             sources = []
+            response = None
+            provider = None
             
             # Search documents if available
             if st.session_state.local_vectorstore and cohere_key:
@@ -542,19 +544,50 @@ if query := st.chat_input("Ask a question about your documents or anything else.
                     docs = retriever.get_relevant_documents(query)
                     
                     if docs:
+                        # Check if the documents actually contain relevant information
                         response, provider = generate_response(query, docs, "", openai_key, cohere_key)
                         sources.append("📄 Document search")
+                        
+                        # Check if the AI says the context doesn't contain relevant information
+                        if any(phrase in response.lower() for phrase in [
+                            "context doesn't contain", 
+                            "context does not contain",
+                            "no relevant information",
+                            "not mentioned in the context",
+                            "context doesn't have",
+                            "not found in the context",
+                            "context doesn't provide",
+                            "based on the context, i cannot"
+                        ]):
+                            st.info("📄 Documents searched but no relevant information found. Searching the web...")
+                            # Fall back to web search
+                            web_results, web_sources = web_search_fallback(query)
+                            response, provider = generate_response(query, [], web_results, openai_key, cohere_key)
+                            sources = web_sources  # Replace document sources with web sources
                     else:
-                        # No documents found, try web search
+                        # No documents found at all, try web search
+                        st.info("📄 No relevant documents found. Searching the web...")
                         web_results, web_sources = web_search_fallback(query)
                         response, provider = generate_response(query, [], web_results, openai_key, cohere_key)
                         sources.extend(web_sources)
+                        
                 except Exception as e:
-                    st.error(f"Search failed: {e}")
-                    response, provider = generate_response(query, [], "", openai_key, cohere_key)
+                    st.error(f"Document search failed: {e}")
+                    # Fall back to web search on error
+                    st.info("🌐 Falling back to web search...")
+                    web_results, web_sources = web_search_fallback(query)
+                    response, provider = generate_response(query, [], web_results, openai_key, cohere_key)
+                    sources.extend(web_sources)
             else:
-                # No documents uploaded, general chat
-                response, provider = generate_response(query, [], "", openai_key, cohere_key)
+                # No documents uploaded, try web search first for better answers
+                if any(word in query.lower() for word in ['news', 'current', 'today', 'latest', 'recent', 'what is', 'who is', 'when did', 'where is']):
+                    st.info("🌐 No documents uploaded. Searching the web for current information...")
+                    web_results, web_sources = web_search_fallback(query)
+                    response, provider = generate_response(query, [], web_results, openai_key, cohere_key)
+                    sources.extend(web_sources)
+                else:
+                    # General chat without web search
+                    response, provider = generate_response(query, [], "", openai_key, cohere_key)
             
             st.markdown(response)
             st.caption(f"Response from: {provider}")
