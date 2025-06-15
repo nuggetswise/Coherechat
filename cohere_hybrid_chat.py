@@ -14,6 +14,15 @@ import json
 import pandas as pd
 import requests
 from urllib.parse import urlparse
+# New OCR imports
+try:
+    import pytesseract
+    from PIL import Image
+    import pdf2image
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
+    st.warning("OCR libraries not installed. Install with: pip install pytesseract pillow pdf2image")
 
 load_dotenv()
 
@@ -353,12 +362,23 @@ with st.sidebar:
     tab1, tab2 = st.tabs(["📁 Local Files", "🔮 Cohere Datasets"])
     
     with tab1:
-        st.subheader("Upload PDF Files")
+        st.subheader("Upload Files")
+        
+        # Check OCR availability
+        if OCR_AVAILABLE:
+            st.success("🔍 OCR enabled - supports images and handwritten text!")
+            file_types = ["pdf", "jpg", "jpeg", "png", "webp"]
+            help_text = "Upload PDFs, images, or scanned documents. OCR will extract text from images and handwritten notes."
+        else:
+            st.warning("📄 Text-only mode - install OCR for image support")
+            file_types = ["pdf"]
+            help_text = "Upload PDF files for text extraction. For image support, install: pip install pytesseract pillow pdf2image"
+        
         uploaded_files = st.file_uploader(
-            "Upload PDF files",
-            type=["pdf"],
+            "Upload Files",
+            type=file_types,
             accept_multiple_files=True,
-            help="Upload PDF files for local processing"
+            help=help_text
         )
         
         # Add URL input section
@@ -366,7 +386,7 @@ with st.sidebar:
         url_input = st.text_area(
             "Enter URLs (one per line):",
             placeholder="https://example.com/article1\nhttps://example.com/article2",
-            help="Add web pages to process alongside PDFs"
+            help="Add web pages to process alongside files"
         )
         
         urls = [url.strip() for url in url_input.split('\n') if url.strip()]
@@ -375,8 +395,8 @@ with st.sidebar:
         
         with col1:
             if uploaded_files and cohere_key:
-                if st.button("Process PDF Files", type="primary"):
-                    vectorstore = process_uploaded_files(uploaded_files, cohere_key)
+                if st.button("Process Files (with OCR)", type="primary"):
+                    vectorstore = process_mixed_files(uploaded_files, cohere_key)
                     if vectorstore:
                         st.session_state.local_vectorstore = vectorstore
                         st.rerun()
@@ -394,9 +414,9 @@ with st.sidebar:
             if st.button("Process All Sources", type="primary", use_container_width=True):
                 combined_vectorstore = None
                 
-                # Process PDFs first
+                # Process files first
                 if uploaded_files:
-                    combined_vectorstore = process_uploaded_files(uploaded_files, cohere_key)
+                    combined_vectorstore = process_mixed_files(uploaded_files, cohere_key)
                 
                 # Process URLs
                 if urls:
@@ -407,6 +427,29 @@ with st.sidebar:
                 if combined_vectorstore:
                     st.session_state.local_vectorstore = combined_vectorstore
                     st.rerun()
+        
+        # Show processed files with extraction method
+        if st.session_state.processed_files:
+            st.subheader("📋 Processed Files")
+            for filename in st.session_state.processed_files:
+                # Try to determine extraction method from vectorstore metadata
+                extraction_info = "📄 Text"
+                if st.session_state.local_vectorstore:
+                    # This would need to be enhanced to show actual extraction methods
+                    try:
+                        docs = st.session_state.local_vectorstore.similarity_search(
+                            "", k=1, filter={"source_file": filename}
+                        )
+                        if docs and 'extraction_method' in docs[0].metadata:
+                            method = docs[0].metadata['extraction_method']
+                            if method == 'tesseract':
+                                extraction_info = "🔍 OCR"
+                            elif method == 'text':
+                                extraction_info = "📄 Text"
+                    except:
+                        pass
+                
+                st.write(f"✅ {filename} ({extraction_info})")
 
     with tab2:
         st.subheader("Cohere Platform Datasets")
