@@ -258,7 +258,6 @@ def search_documents(vectorstore, query, cohere_key):
                 model="rerank-english-v3.0",
                 query=query,
                 documents=docs_for_rerank,
-                top_k=5,
                 return_documents=True
             )
             
@@ -416,214 +415,165 @@ with st.sidebar:
                 
                 # Process files first
                 if uploaded_files:
-                    combined_vectorstore = process_mixed_files(uploaded_files, cohere_key)
+                    file_vectorstore = process_mixed_files(uploaded_files, cohere_key)
+                    if file_vectorstore:
+                        combined_vectorstore = file_vectorstore
                 
-                # Process URLs
+                # Process URLs and combine
                 if urls:
                     url_vectorstore = process_url_content(urls, cohere_key)
                     if url_vectorstore:
-                        combined_vectorstore = url_vectorstore
+                        if combined_vectorstore:
+                            # Combine with existing vectorstore
+                            combined_vectorstore.merge_from(url_vectorstore)
+                        else:
+                            combined_vectorstore = url_vectorstore
                 
                 if combined_vectorstore:
                     st.session_state.local_vectorstore = combined_vectorstore
                     st.rerun()
         
-        # Show processed files with extraction method
+        # Display processed files
         if st.session_state.processed_files:
-            st.subheader("📋 Processed Files")
-            for filename in st.session_state.processed_files:
-                # Try to determine extraction method from vectorstore metadata
-                extraction_info = "📄 Text"
-                if st.session_state.local_vectorstore:
-                    # This would need to be enhanced to show actual extraction methods
-                    try:
-                        docs = st.session_state.local_vectorstore.similarity_search(
-                            "", k=1, filter={"source_file": filename}
-                        )
-                        if docs and 'extraction_method' in docs[0].metadata:
-                            method = docs[0].metadata['extraction_method']
-                            if method == 'tesseract':
-                                extraction_info = "🔍 OCR"
-                            elif method == 'text':
-                                extraction_info = "📄 Text"
-                    except:
-                        pass
-                
-                st.write(f"✅ {filename} ({extraction_info})")
-
+            st.subheader("📄 Processed Files")
+            for file in st.session_state.processed_files:
+                st.write(f"✅ {file}")
+            
+            if st.button("🗑️ Clear All Files"):
+                st.session_state.local_vectorstore = None
+                st.session_state.processed_files = []
+                st.rerun()
+    
     with tab2:
-        st.subheader("Cohere Platform Datasets")
+        st.subheader("🔮 Cohere Datasets")
         
         if cohere_key:
             if st.button("🔄 Refresh Datasets"):
-                with st.spinner("Fetching datasets..."):
-                    datasets = get_cohere_datasets(cohere_key)
-                    st.session_state.cohere_datasets = datasets
+                st.session_state.cohere_datasets = get_cohere_datasets(cohere_key)
+                st.rerun()
+            
+            if not st.session_state.cohere_datasets:
+                st.session_state.cohere_datasets = get_cohere_datasets(cohere_key)
             
             if st.session_state.cohere_datasets:
-                dataset_names = [f"{d.name} ({d.id})" for d in st.session_state.cohere_datasets]
-                selected = st.selectbox(
+                dataset_names = [f"{ds.name} (ID: {ds.id})" for ds in st.session_state.cohere_datasets]
+                selected_idx = st.selectbox(
                     "Select Dataset:",
-                    ["None"] + dataset_names
+                    range(len(dataset_names)),
+                    format_func=lambda x: dataset_names[x],
+                    index=0 if st.session_state.selected_dataset is None else st.session_state.selected_dataset
                 )
+                st.session_state.selected_dataset = selected_idx
                 
-                if selected != "None":
-                    dataset_id = selected.split("(")[-1].strip(")")
-                    st.session_state.selected_dataset = dataset_id
-                    st.success(f"Selected dataset: {selected}")
-                else:
-                    st.session_state.selected_dataset = None
+                selected_dataset = st.session_state.cohere_datasets[selected_idx]
+                st.info(f"📊 Selected: {selected_dataset.name}")
+                st.caption(f"Type: {getattr(selected_dataset, 'type', 'N/A')} | Created: {getattr(selected_dataset, 'created_at', 'N/A')}")
             else:
-                st.info("No datasets found. Upload files to Cohere Dashboard first.")
-                st.markdown("""
-                **How to create datasets:**
-                1. Go to [Cohere Dashboard](https://dashboard.cohere.ai)
-                2. Navigate to Datasets
-                3. Upload .csv or .jsonl files
-                4. Create an embed dataset
-                """)
+                st.info("No datasets found. Create datasets in Cohere Dashboard.")
+                st.markdown("💡 **Tip**: Upload the JSONL file from 'Local Files' tab to create a dataset!")
         else:
-            st.warning("Cohere API key required")
+            st.warning("Cohere API key required to access datasets")
     
-    # Settings
-    st.header("⚙️ Settings")
+    # Search strategy selection
+    st.header("🔍 Search Strategy")
+    search_options = []
     
-    # Search strategy
-    search_strategy = st.radio(
-        "Search Strategy:",
-        ["Local First", "Cohere Dataset First", "Both + Combine"]
+    if st.session_state.local_vectorstore:
+        search_options.append("📄 Local Documents")
+    
+    if cohere_key and st.session_state.cohere_datasets and st.session_state.selected_dataset is not None:
+        search_options.append("🔮 Cohere Dataset")
+    
+    search_options.extend(["🌐 Web Search", "🔄 All Sources"])
+    
+    search_strategy = st.selectbox(
+        "Choose search approach:",
+        search_options,
+        index=len(search_options)-1 if len(search_options) > 1 else 0
     )
-    
-    # Provider status
-    st.subheader("AI Providers")
-    if openai_key:
-        st.write("🟢 OpenAI (Primary)")
-    if cohere_key:
-        st.write("🟠 Cohere (Fallback)")
-    if not openai_key and not cohere_key:
-        st.write("❌ No providers configured")
-    
-    # Clear data
-    if st.button("Clear All Data"):
-        st.session_state.clear()
-        st.rerun()
 
 # Main chat interface
-st.header("💬 Ask Questions")
-
-# Display search strategy info
-strategy_info = {
-    "Local First": "🔍 Searches local files first, then Cohere datasets, then web",
-    "Cohere Dataset First": "🔮 Searches Cohere datasets first, then local files, then web", 
-    "Both + Combine": "🔄 Searches both sources and combines results"
-}
-st.info(strategy_info[search_strategy])
+st.header("💬 Chat Interface")
 
 # Display chat history
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.write(message["content"])
         if "sources" in message:
-            with st.expander("Sources"):
+            with st.expander("📚 Sources"):
                 for source in message["sources"]:
                     st.write(f"• {source}")
 
 # Chat input
-if query := st.chat_input("Ask a question about your data or anything else..."):
-    # Add user message
+if query := st.chat_input("Ask a question..."):
+    # Add user message to chat
     st.session_state.chat_history.append({"role": "user", "content": query})
     
     with st.chat_message("user"):
-        st.markdown(query)
+        st.write(query)
     
-    # Generate response based on search strategy
     with st.chat_message("assistant"):
-        with st.spinner("Searching across all sources..."):
-            all_sources = []
-            all_docs = []
+        with st.spinner("Searching and generating response..."):
+            context_docs = []
             context_text = ""
+            sources = []
             
             # Execute search strategy
-            if search_strategy == "Local First":
-                # Try local first
-                if st.session_state.local_vectorstore and cohere_key:
-                    docs, sources = search_documents(st.session_state.local_vectorstore, query, cohere_key)
-                    if docs:
-                        all_docs.extend(docs)
-                        all_sources.extend(sources)
-                    else:
-                        # Try Cohere dataset
-                        if st.session_state.selected_dataset:
-                            dataset_results, dataset_sources = search_cohere_dataset(
-                                st.session_state.selected_dataset, query, cohere_key
-                            )
-                            if dataset_results:
-                                context_text = dataset_results[0]
-                                all_sources.extend(dataset_sources)
-                
-            elif search_strategy == "Cohere Dataset First":
-                # Try Cohere dataset first
-                if st.session_state.selected_dataset and cohere_key:
-                    dataset_results, dataset_sources = search_cohere_dataset(
-                        st.session_state.selected_dataset, query, cohere_key
-                    )
-                    if dataset_results:
-                        context_text = dataset_results[0]
-                        all_sources.extend(dataset_sources)
-                    else:
-                        # Try local files
-                        if st.session_state.local_vectorstore:
-                            docs, sources = search_documents(st.session_state.local_vectorstore, query, cohere_key)
-                            all_docs.extend(docs)
-                            all_sources.extend(sources)
+            if search_strategy == "📄 Local Documents" and st.session_state.local_vectorstore:
+                context_docs, sources = search_documents(st.session_state.local_vectorstore, query, cohere_key)
             
-            elif search_strategy == "Both + Combine":
-                # Search both sources
-                if st.session_state.local_vectorstore and cohere_key:
-                    docs, sources = search_documents(st.session_state.local_vectorstore, query, cohere_key)
-                    all_docs.extend(docs)
-                    all_sources.extend(sources)
-                
-                if st.session_state.selected_dataset and cohere_key:
-                    dataset_results, dataset_sources = search_cohere_dataset(
-                        st.session_state.selected_dataset, query, cohere_key
-                    )
-                    if dataset_results:
-                        context_text += f"\n\nCohere Dataset Results:\n{dataset_results[0]}"
-                        all_sources.extend(dataset_sources)
+            elif search_strategy == "🔮 Cohere Dataset" and cohere_key and st.session_state.selected_dataset is not None:
+                selected_dataset = st.session_state.cohere_datasets[st.session_state.selected_dataset]
+                context_text, dataset_sources = search_cohere_dataset(selected_dataset.id, query, cohere_key)
+                sources.extend(dataset_sources)
             
-            # If no documents found, try web search
-            if not all_docs and not context_text:
-                st.info("No relevant information found in uploaded data. Searching the web...")
-                web_results, web_sources = web_search_fallback(query)
-                context_text = web_results
-                all_sources.extend(web_sources)
+            elif search_strategy == "🌐 Web Search":
+                context_text, web_sources = web_search_fallback(query)
+                sources.extend(web_sources)
+            
+            elif search_strategy == "🔄 All Sources":
+                # Search local documents
+                if st.session_state.local_vectorstore:
+                    local_docs, local_sources = search_documents(st.session_state.local_vectorstore, query, cohere_key)
+                    context_docs.extend(local_docs)
+                    sources.extend(local_sources)
+                
+                # Search Cohere dataset
+                if cohere_key and st.session_state.selected_dataset is not None:
+                    selected_dataset = st.session_state.cohere_datasets[st.session_state.selected_dataset]
+                    dataset_context, dataset_sources = search_cohere_dataset(selected_dataset.id, query, cohere_key)
+                    if isinstance(dataset_context, list):
+                        context_text += "\n".join(dataset_context)
+                    else:
+                        context_text += dataset_context
+                    sources.extend(dataset_sources)
+                
+                # Web search fallback if no local results
+                if not context_docs and not context_text:
+                    fallback_context, web_sources = web_search_fallback(query)
+                    context_text += fallback_context
+                    sources.extend(web_sources)
             
             # Generate response
-            response, provider = generate_response(query, all_docs, context_text, openai_key, cohere_key)
+            response, model_used = generate_response(query, context_docs, context_text, openai_key, cohere_key)
             
-            st.markdown(response)
-            st.caption(f"Response from: {provider}")
+            st.write(response)
             
             # Show sources
-            if all_sources:
-                with st.expander("Sources"):
-                    for source in all_sources:
+            if sources:
+                with st.expander("📚 Sources"):
+                    for source in sources:
                         st.write(f"• {source}")
-                        
-                        # Add source files if available
-                        if all_docs:
-                            source_files = list(set([doc.metadata.get('source_file', 'Unknown') for doc in all_docs]))
-                            for file in source_files:
-                                st.write(f"  📄 {file}")
+            
+            st.caption(f"🤖 Generated by: {model_used}")
     
-    # Add assistant response
+    # Add assistant response to chat history
     st.session_state.chat_history.append({
         "role": "assistant", 
         "content": response,
-        "sources": all_sources
+        "sources": sources
     })
 
 # Footer
 st.markdown("---")
-st.caption("🔮 Cohere Hybrid Chat • Local Files + Platform Datasets + Web Search")
+st.markdown("🔮 **Cohere Hybrid Chat** - Combining local knowledge with cloud intelligence")

@@ -133,7 +133,6 @@ def search_documents(vectorstore, query, cohere_key):
                 model="rerank-english-v3.0",
                 query=query,
                 documents=docs_for_rerank,
-                top_k=5,
                 return_documents=True
             )
             

@@ -205,7 +205,6 @@ def process_query(vectorstore, query) -> tuple[str, list]:
                     model="rerank-english-v3.0",
                     query=query,
                     documents=docs_for_rerank,
-                    top_k=5,  # Get top 5 after reranking
                     return_documents=True
                 )
                 

@@ -431,8 +431,7 @@ Artificial intelligence mimics human intelligence"""
                 response = co.rerank(
                     model="rerank-english-v3.0",
                     query=query,
-                    documents=documents,
-                    top_k=len(documents)
+                    documents=documents
                 )
                 
                 st.subheader("🎯 Reranked Results:")
