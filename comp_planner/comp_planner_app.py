@@ -53,7 +53,8 @@ from comp_planner.enhanced_ui import (
 # Import existing modules
 from . import auth
 from . import query_router
-from comp_planner.agent_planner import Planner
+# Import offer_chain instead of agent_planner
+from agents.offer_chain import run_compensation_planner
 from comp_planner.tool_manager import run_tool_action
 
 def get_api_keys():
@@ -712,119 +713,14 @@ def display_evaluation_interface(co_client, config):
             create_evaluation_dashboard_ui([evaluation])
 
 def display_single_agent_interface(co_client, config):
-    """Display single agent interface (fallback to original system)"""
+    """Display single agent interface using the offer_chain approach"""
     
     st.markdown("### 🤖 Single Agent Mode")
-    st.info("Using the original single-agent system with persona selection")
+    st.info("Using the offer_chain system for compensation planning")
     
-    # Use existing chat interface
-    display_compensation_chat(co_client, "user")
-
-def display_fallback_recommendation(fallback: Dict[str, Any]):
-    """Display fallback recommendation in a structured format"""
-    
-    st.markdown("### 💰 Compensation Package")
-    
-    # Base salary
-    if "base_salary" in fallback:
-        base_salary = fallback["base_salary"]
-        if isinstance(base_salary, dict):
-            st.markdown(f"**Base Salary**: ${base_salary.get('recommended', 0):,}")
-            if "range" in base_salary:
-                st.caption(f"Range: ${base_salary['range'].get('min', 0):,} - ${base_salary['range'].get('max', 0):,}")
-    
-    # Bonus
-    if "bonus" in fallback:
-        bonus = fallback["bonus"]
-        if isinstance(bonus, dict):
-            st.markdown(f"**Annual Bonus**: ${bonus.get('target', 0):,}")
-            if "range" in bonus:
-                st.caption(f"Range: {bonus['range']}")
-    
-    # Equity
-    if "equity" in fallback:
-        equity = fallback["equity"]
-        if isinstance(equity, dict):
-            st.markdown(f"**Equity**: {equity.get('percentage', 0):.1%}")
-            if "description" in equity:
-                st.caption(equity["description"])
-    
-    # Total compensation
-    if "total_compensation" in fallback:
-        total_comp = fallback["total_compensation"]
-        if isinstance(total_comp, dict):
-            st.markdown(f"**Total Compensation**: ${total_comp.get('estimated', 0):,}")
-    
-    # Justification
-    if "justification" in fallback:
-        with st.expander("💡 Justification"):
-            st.markdown(fallback["justification"])
-
-def get_crewai_compensation_planner(cohere_client):
-    """Get the CrewAI compensation planner system"""
-    from comp_planner.crewai_agents import CompensationCrewAI
-    return CompensationCrewAI(cohere_client)
-
-def get_cohere_rag_system(cohere_client):
-    """Get the Cohere RAG system for compensation queries"""
-    from comp_planner.cohere_rag_system import CohereRAGSystem
-    return CohereRAGSystem(cohere_client)
-
-def get_compensation_evaluator():
-    """Get the compensation evaluator system"""
-    from comp_planner.evaluation_framework import CompensationEvaluator
-    return CompensationEvaluator()
-
-def get_agent_consensus_analyzer():
-    """Get the agent consensus analyzer system"""
-    from comp_planner.evaluation_framework import AgentConsensusAnalyzer
-    return AgentConsensusAnalyzer()
-
-def display_compensation_chat(co_client, user_email):
-    """Enhanced compensation chat interface with process streaming."""
     # Initialize session state for chat history
     if "comp_messages" not in st.session_state:
         st.session_state.comp_messages = []
-        
-    if "comp_unique_id" not in st.session_state:
-        # Create a unique session ID
-        st.session_state.comp_unique_id = str(uuid.uuid4())
-    
-    # Configuration sidebar
-    with st.sidebar:
-        st.subheader("Persona & Mode Selection")
-        
-        # Use the persona that was already selected in the parent page
-        # instead of showing a duplicate selector
-        persona = st.session_state.get("persona", "Analyst")
-        
-        # Mode selection
-        st.markdown("AI Assistant Mode:")
-        ai_mode = st.selectbox(
-            "AI Assistant Mode:",
-            options=["Agent Mode", "Direct Chat"],
-            index=0,
-            help="Agent mode uses specialized tools for analysis, Direct Chat provides quick responses",
-            label_visibility="collapsed"
-        )
-        
-        # RESTORED: Data source selection with web fallback option
-        st.markdown("Data Source:")
-        data_source = st.selectbox(
-            "Data Source:",
-            options=["Internal Database", "Web Search", "Hybrid (Internal + Web Fallback)"],
-            index=2,  # Default to hybrid
-            help="Select where to source compensation data from",
-            label_visibility="collapsed"
-        )
-        
-        # Save selections in session state
-        st.session_state["ai_mode"] = ai_mode
-        st.session_state["data_source"] = data_source
-        st.session_state["persona"] = persona
-
-    # Main chat interface
-    st.markdown("### 💬 Compensation Planning Chat")
     
     # Display chat history
     for message in st.session_state.comp_messages:
@@ -842,207 +738,66 @@ def display_compensation_chat(co_client, user_email):
         
         # Generate assistant response
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                
-                if ai_mode == "Agent Mode":
-                    # Use agent-based planning
-                    planner = Planner(co_client)
-                    plan = planner.plan(prompt, persona)
+            with st.spinner("Processing your request..."):
+                # Use offer_chain system instead of agent_planner
+                try:
+                    # Import from agents.offer_chain
+                    from agents.offer_chain import run_compensation_planner
                     
-                    # Execute the plan
-                    response_parts = []
+                    # Execute the offer_chain workflow
+                    result = run_compensation_planner(
+                        user_query=prompt,
+                        cohere_key=st.session_state.get("cohere_api_key", "")
+                    )
                     
-                    for step in plan:
-                        try:
-                            tool = step.get("tool", "general_answer")
-                            args = step.get("args", {"query": prompt})
-                            
-                            # Add context for web fallback
-                            context = {
-                                "web_fallback_enabled": data_source in ["Web Search", "Hybrid (Internal + Web Fallback)"],
-                                "persona": persona
-                            }
-                            
-                            result = run_tool_action(tool, args, context)
-                            
-                            if result:
-                                if "recommendation" in result:
-                                    response_parts.append(result["recommendation"])
-                                elif "answer" in result:
-                                    response_parts.append(result["answer"])
-                                elif "policy_check" in result:
-                                    response_parts.append(result["policy_check"])
-                                elif "risk" in result:
-                                    response_parts.append(result["risk"])
+                    # Extract the recommendation from recruitment manager
+                    if result and "recruitment_manager" in result:
+                        offer = result["recruitment_manager"].get("offer", "")
+                        st.markdown("### 💰 Compensation Recommendation")
+                        st.markdown(offer)
                         
-                        except Exception as e:
-                            st.error(f"Tool execution error: {e}")
+                        # Show HR Director feedback
+                        if "hr_director" in result:
+                            hr_comments = result["hr_director"].get("comments", "")
+                            with st.expander("💼 HR Director Feedback", expanded=False):
+                                st.markdown(hr_comments)
+                        
+                        # Show Hiring Manager approval
+                        if "hiring_manager" in result:
+                            approval = result["hiring_manager"].get("approval", "Pending")
+                            manager_comments = result["hiring_manager"].get("comments", "")
+                            
+                            status_color = "green" if approval == "Approved" else "red"
+                            st.markdown(f"**Status:** <span style='color:{status_color};font-weight:bold;'>{approval}</span>", unsafe_allow_html=True)
+                            
+                            with st.expander("👔 Hiring Manager Comments", expanded=False):
+                                st.markdown(manager_comments)
+                        
+                        # Add to chat history
+                        response_content = f"### Compensation Recommendation\n\n{offer}\n\n"
+                        if hr_comments:
+                            response_content += f"**HR Director Comments:** {hr_comments}\n\n"
+                        if approval:
+                            response_content += f"**Status:** {approval}"
+                        
+                        st.session_state.comp_messages.append({"role": "assistant", "content": response_content})
+                    else:
+                        st.error("Failed to generate compensation recommendation")
+                        st.session_state.comp_messages.append({"role": "assistant", "content": "I encountered an error generating your compensation recommendation. Please try again."})
+                
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    st.session_state.comp_messages.append({"role": "assistant", "content": f"I encountered an error: {str(e)}"})
                     
-                    final_response = "\n\n".join(response_parts) if response_parts else "I couldn't process your request. Please try rephrasing your question."
-                
-                else:
-                    # Direct chat mode
-                    try:
-                        response = co_client.chat(
-                            model="command-r-plus",
-                            message=f"You are a compensation planning expert. Answer this question: {prompt}",
-                            temperature=0.7
-                        )
-                        final_response = response.text
-                    except Exception as e:
-                        final_response = f"I encountered an error: {str(e)}"
-                
-                # Display the response
-                st.markdown(final_response)
-                
-                # Add assistant response to chat history
-                st.session_state.comp_messages.append({"role": "assistant", "content": final_response})
-
-def log_to_supabase(
-    query: str, 
-    query_type: str, 
-    response: Dict[str, Any],
-    candidate_context: Dict[str, Any] = None,
-    user_email: str = None
-):
-    """Log query and response to Supabase if available."""
-    # Disabled for now
-    pass
-
-def display_recommendation_card(answer_data):
-    """Display a well-formatted recommendation card with all components."""
-    if not answer_data:
-        st.error("No recommendation data available")
-        return
-    
-    # Handle both string and object responses
-    if isinstance(answer_data, str):
-        st.markdown(answer_data)
-        return
-        
-    recommendation = answer_data.get("recommendation", "")
-    justification = answer_data.get("justification", "")
-    risk_factors = answer_data.get("risk_factors", "")
-    confidence = answer_data.get("confidence_score", 0)
-    
-    # Display main card with recommendation
-    st.markdown("## 📊 AI Compensation Recommendation")
-    
-    # Add confidence indicator
-    confidence_color = "red" if confidence < 5 else "orange" if confidence < 7 else "green"
-    st.markdown(f"""
-    <div style="text-align: right; margin-top: -30px;">
-        <span style="color: {confidence_color}; font-weight: bold;">
-            Confidence Level: {confidence}/10
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Main recommendation
-    st.markdown(recommendation)
-    
-    # Rationale and risk factors
-    if justification:
-        with st.expander("💡 Analysis & Justification", expanded=True):
-            st.markdown(justification)
-            
-    if risk_factors:
-        with st.expander("⚠️ Risk Factors & Considerations", expanded=True):
-            st.markdown(risk_factors)
-
-def show_ai_analysis_with_process(query_type="", context=None, steps=None):
-    """Show the AI analysis process with expandable details."""
-    if not context and not steps:
-        return
-        
-    with st.expander("🔍 View AI Analysis Process", expanded=False):
-        if query_type:
-            st.markdown(f"**Query Type**: {query_type}")
-            
-        if context:
-            st.markdown("### 📋 Extracted Information")
-            
-            # Clean up the context for display
-            for key, value in context.items():
-                if key not in ["query", "sources"]:
-                    st.markdown(f"**{key.replace('_', ' ').title()}**: {value}")
-        
-        if steps:
-            st.markdown("### 🔄 Processing Steps")
-            for step in steps:
-                st.markdown(f"- {step}")
-
-def handle_user_feedback(query_id, recommendation):
-    """Handle user feedback with thumbs up/down and comments."""
-    col1, col2 = st.columns([1, 5])
-    
-    with col1:
-        if st.button("👍", key=f"like_{query_id}"):
-            st.session_state[f"feedback_{query_id}"] = "positive"
-            st.success("Thanks for your feedback!")
-            
-        if st.button("👎", key=f"dislike_{query_id}"):
-            st.session_state[f"feedback_{query_id}"] = "negative"
-            feedback_key = f"feedback_comment_{query_id}"
-            st.session_state[feedback_key] = ""
-            st.text_area("What could be improved?", key=feedback_key)
-            
-            if st.button("Submit Feedback", key=f"submit_{query_id}"):
-                # Function to handle feedback submission
-                feedback_text = st.session_state[feedback_key]
-                # Here you would normally save this feedback
-                st.success("Thank you for helping us improve!")
-
-def run_duckduckgo_search(query):
-    """Run DuckDuckGo search as fallback for compensation data gaps"""
-    try:
-        # Using requests and BeautifulSoup for simple web search
-        import requests
-        from urllib.parse import quote_plus
-        
-        # Clean and encode the query
-        search_query = quote_plus(f"compensation salary {query}")
-        search_url = f"https://html.duckduckgo.com/html/?q={search_query}"
-        
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-        
-        response = requests.get(search_url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            results = []
-            sources = []
-            
-            # Look for search result snippets
-            result_elements = soup.find_all("div", class_="result__body")[:5]
-            
-            for element in result_elements:
-                title_elem = element.find("a", class_="result__a")
-                snippet_elem = element.find("a", class_="result__snippet")
-                url_elem = element.find("a", class_="result__url")
-                
-                if title_elem and snippet_elem:
-                    title = title_elem.get_text(strip=True)
-                    snippet = snippet_elem.get_text(strip=True)
-                    url = url_elem.get('href') if url_elem else "No URL"
-                    
-                    results.append(f"**{title}**\n{snippet}")
-                    sources.append(f"{title} - {url}")
-            
-            if results:
-                web_results = "\n\n".join(results)
-                return web_results, sources
-            else:
-                return "No relevant compensation data found in web search", ["No web results available"]
-        else:
-            return f"Web search failed with status {response.status_code}", ["Search request failed"]
-            
-    except ImportError:
-        # Fallback if requests/BeautifulSoup not available
-        return "Web search unavailable - missing dependencies. Please install: pip install requests beautifulsoup4", ["Dependencies missing"]
-    except Exception as e:
-        return f"Web search error: {str(e)}", ["Search error occurred"]
+    # Quick examples
+    if not st.session_state.comp_messages:
+        st.markdown("### 💡 Try These Examples:")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Create a compensation package for a Senior SWE"):
+                st.session_state.comp_messages.append({"role": "user", "content": "Create a compensation package for a Senior Software Engineer in San Francisco"})
+                st.experimental_rerun()
+        with col2:
+            if st.button("What's a fair salary for a Product Manager?"):
+                st.session_state.comp_messages.append({"role": "user", "content": "What's a fair salary for a Product Manager in New York?"})
+                st.experimental_rerun()

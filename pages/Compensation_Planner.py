@@ -12,6 +12,15 @@ from apply_patches import patch_sqlite_for_chromadb
 patch_sqlite_for_chromadb()
 
 import streamlit as st
+
+# Set page config with mobile responsiveness - MUST BE THE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="Compensation Planner (Multi-Agent)",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="collapsed"  # Better for mobile
+)
+
 import cohere
 import uuid
 import re
@@ -68,14 +77,6 @@ except ImportError:
         return []
     def get_persona_config(name):
         return {}
-
-# Set page config with mobile responsiveness
-st.set_page_config(
-    page_title="Compensation Planner (Multi-Agent)",
-    page_icon="💰",
-    layout="wide",
-    initial_sidebar_state="collapsed"  # Better for mobile
-)
 
 # Mobile-responsive CSS
 st.markdown("""

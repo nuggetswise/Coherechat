@@ -3,24 +3,27 @@ streamlit==1.40.2
 
 # AI Providers
 cohere==5.11.4
-openai==1.35.0
+openai
 
-# Updated CrewAI setup - using newer version for Pydantic 2.9+ compatibility
-crewai>=0.55.0
-crewai-tools>=0.4.0
+# Add pre-built tiktoken to avoid build errors
+tiktoken>=0.5.1,<0.6.0  # Using an older version with pre-built wheels
 
-# Compatible LangChain versions for newer CrewAI
-langchain>=0.1.20
-langchain-core>=0.1.53
-langchain-community>=0.0.38
+# Specific versions that work together
+langchain
+langchain-core
+langchain-community
+
+# CrewAI - specific working version
+crewai
+crewai-tools==0.0.1  # Using the version that successfully installed
 
 # Data processing  
 pandas==2.2.3
 numpy>=1.25.0,<2.0
-pydantic>=2.8.0,<3.0  # Updated range for CrewAI compatibility
+pydantic>=2.0.0,<3.0
 
 # Document processing
-pypdf==4.3.1
+pypdf==4.3.1  # Keep this version since it's working
 python-docx==1.1.2
 beautifulsoup4==4.12.3
 
@@ -33,5 +36,5 @@ typing-extensions>=4.12.0
 streamlit-option-menu==0.4.0
 
 # Essential for CrewAI
-instructor>=0.5.2
-tenacity>=8.5.0
+instructor
+tenacity>=8.0.0

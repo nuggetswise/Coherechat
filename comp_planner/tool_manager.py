@@ -9,7 +9,6 @@ from enum import Enum
 from pydantic import BaseModel
 import cohere
 from tenacity import retry, stop_after_attempt, wait_exponential
-from comp_planner.logging import log_agent_event
 
 # Import run_duckduckgo_search from comp_planner_app
 try:
