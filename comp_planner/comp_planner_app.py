@@ -14,8 +14,35 @@ from typing import List, Dict, Any, Optional
 import uuid
 
 # Import our new enhanced components
-from comp_planner.crewai_agents import get_crewai_compensation_planner, CompensationContext
-from comp_planner.cohere_rag_system import get_cohere_rag_system
+try:
+    from comp_planner.cohere_rag_system import get_cohere_rag_system
+except ImportError:
+    def get_cohere_rag_system(client):
+        st.warning("RAG system not available")
+        return None
+
+# Try to import CrewAI components
+try:
+    from comp_planner.crewai_agents import get_crewai_compensation_planner, CompensationContext
+    CREWAI_AVAILABLE = True
+except ImportError:
+    CREWAI_AVAILABLE = False
+    # Fallback class if CrewAI not available
+    class CompensationContext:
+        def __init__(self, role="Software Engineer", level="Junior", location="San Francisco", department="Engineering"):
+            self.role = role
+            self.level = level
+            self.location = location
+            self.department = department
+        
+        def dict(self):
+            return {
+                "role": self.role,
+                "level": self.level,
+                "location": self.location,
+                "department": self.department
+            }
+
 from comp_planner.evaluation_framework import get_compensation_evaluator, get_agent_consensus_analyzer
 from comp_planner.enhanced_ui import (
     display_enhanced_sidebar, create_evaluation_dashboard_ui, 

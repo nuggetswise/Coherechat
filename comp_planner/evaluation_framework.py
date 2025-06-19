@@ -10,9 +10,23 @@ from datetime import datetime
 import json
 from dataclasses import dataclass
 from enum import Enum
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
+
+# Optional plotly imports - gracefully handle missing plotly
+try:
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
+    # Create dummy classes to prevent errors
+    class DummyPlotly:
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: {"error": "Plotly not available"}
+    
+    go = DummyPlotly()
+    px = DummyPlotly()
+    make_subplots = lambda *args, **kwargs: {"error": "Plotly not available"}
 
 
 class EvaluationDimension(str, Enum):
@@ -693,6 +707,35 @@ def create_evaluation_dashboard(evaluations: List[Dict[str, Any]], consensus_ana
     if not evaluations:
         return {"error": "No evaluations to display"}
     
+    # Check if plotly is available for visualizations
+    if not PLOTLY_AVAILABLE:
+        # Return dashboard with text-based analysis when plotly unavailable
+        dates = [eval_data["evaluation_date"] for eval_data in evaluations]
+        scores = [eval_data["overall_score"] for eval_data in evaluations]
+        
+        dashboard = {
+            "charts_available": False,
+            "plotly_error": "Plotly not installed - visualizations unavailable",
+            "summary_stats": {
+                "total_evaluations": len(evaluations),
+                "average_score": np.mean(scores),
+                "latest_score": scores[-1] if scores else 0,
+                "score_trend": "improving" if len(scores) > 1 and scores[-1] > scores[-2] else "declining" if len(scores) > 1 else "stable"
+            }
+        }
+        
+        # Add consensus analysis if available
+        if consensus_analyses:
+            latest_consensus = consensus_analyses[-1]
+            dashboard["consensus_summary"] = {
+                "latest_consensus_score": latest_consensus.get("consensus_score", 0),
+                "agents_count": latest_consensus.get("agent_count", 0),
+                "agreement_areas": latest_consensus.get("agreement_areas", []),
+                "disagreement_areas": latest_consensus.get("disagreement_areas", [])
+            }
+        
+        return dashboard
+    
     # Create evaluation trends chart
     fig_trends = go.Figure()
     
@@ -751,6 +794,7 @@ def create_evaluation_dashboard(evaluations: List[Dict[str, Any]], consensus_ana
     )
     
     dashboard = {
+        "charts_available": True,
         "trends_chart": fig_trends,
         "radar_chart": fig_radar,
         "grades_chart": fig_grades,

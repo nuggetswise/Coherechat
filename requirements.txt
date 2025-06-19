@@ -1,29 +1,38 @@
-# Core dependencies
-streamlit>=1.30.0
-pandas>=2.0.0
-numpy>=1.24.0
-pydantic>=2.0.0
+# Core Streamlit
+streamlit==1.40.2
 
-# AI/ML packages
-cohere>=5.0.0
-openai>=1.0.0
-crewai>=0.28.0
-langchain>=0.1.0
-langchain-community>=0.1.0
-langchain-core>=0.1.0
-langchain-cohere>=0.1.0
+# AI Providers
+cohere==5.11.4
+openai==1.35.0
 
-# Database and vector store
-chromadb>=0.4.18
-pysqlite3-binary>=0.5.0  # SQLite fix for ChromaDB
+# Updated CrewAI setup - using newer version for Pydantic 2.9+ compatibility
+crewai>=0.55.0
+crewai-tools>=0.4.0
+
+# Compatible LangChain versions for newer CrewAI
+langchain>=0.1.20
+langchain-core>=0.1.53
+langchain-community>=0.0.38
+
+# Data processing  
+pandas==2.2.3
+numpy>=1.25.0,<2.0
+pydantic>=2.8.0,<3.0  # Updated range for CrewAI compatibility
 
 # Document processing
-python-docx>=0.8.11
-PyPDF2>=3.0.0
-Pillow>=9.0.0
-pytesseract>=0.3.10
+pypdf==4.3.1
+python-docx==1.1.2
+beautifulsoup4==4.12.3
 
-# Utilities
-python-dotenv>=1.0.0
-requests>=2.31.0
-beautifulsoup4>=4.12.0
+# Core utilities
+requests==2.32.4
+python-dotenv==1.0.0
+typing-extensions>=4.12.0
+
+# UI and Visualization
+streamlit-option-menu==0.4.0
+plotly==5.20.0
+
+# Essential for CrewAI
+instructor>=0.5.2
+tenacity>=8.5.0
