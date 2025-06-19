@@ -1,0 +1,22 @@
+[theme]
+primaryColor = "#5D4384"
+backgroundColor = "#F0F2F6"
+secondaryBackgroundColor = "#E2E8F0"
+textColor = "#262730"
+font = "sans serif"
+
+[server]
+enableCORS = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[global]
+showWarningOnDirectExecution = false
+disableWatchdogWarning = true
+
+[ui]
+hideTopBar = false
+hideSidebarNav = false
+navBarTitle = "Coherechat Dashboard"
