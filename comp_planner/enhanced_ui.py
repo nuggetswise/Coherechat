@@ -209,7 +209,7 @@ def display_agent_workflow_progress(workflow_result: Dict[str, Any]):
 
 
 def create_evaluation_dashboard_ui(evaluation_results: List[Dict[str, Any]], consensus_data: List[Dict[str, Any]] = None):
-    """Create comprehensive evaluation dashboard UI"""
+    """Create comprehensive evaluation dashboard UI (only 4 AI dimensions)"""
     
     if not evaluation_results:
         st.warning("No evaluation data available")
@@ -219,7 +219,7 @@ def create_evaluation_dashboard_ui(evaluation_results: List[Dict[str, Any]], con
     
     # Summary metrics
     latest_eval = evaluation_results[-1]
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.metric(
@@ -235,161 +235,52 @@ def create_evaluation_dashboard_ui(evaluation_results: List[Dict[str, Any]], con
             delta="Improved" if len(evaluation_results) > 1 and latest_eval['overall_score'] > evaluation_results[-2]['overall_score'] else None
         )
     
-    with col3:
-        avg_score = np.mean([eval_data['overall_score'] for eval_data in evaluation_results])
-        st.metric(
-            "Average Score",
-            f"{avg_score:.1f}/10"
-        )
+    # Only show the 4 AI dimensions
+    ai_dims = [
+        "context_relevance",
+        "faithfulness",
+        "context_support_coverage",
+        "question_answerability"
+    ]
+    dim_labels = [
+        "Context Relevance",
+        "Faithfulness",
+        "Context Support Coverage",
+        "Question Answerability"
+    ]
+    scores = [latest_eval["dimension_scores"][dim]["score"] for dim in ai_dims]
+    fig_radar = go.Figure()
+    fig_radar.add_trace(go.Scatterpolar(
+        r=scores,
+        theta=dim_labels,
+        fill='toself',
+        name='Current Recommendation',
+        line_color='#FF6B6B'
+    ))
+    fig_radar.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 10])),
+        title="Evaluation Dimensions Analysis",
+        height=500
+    )
+    st.plotly_chart(fig_radar, use_container_width=True)
     
-    with col4:
-        if consensus_data:
-            latest_consensus = consensus_data[-1]
-            st.metric(
-                "Agent Consensus", 
-                f"{latest_consensus.get('consensus_score', 0):.1f}/10"
-            )
+    # Strengths and improvements
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**🌟 Strengths:**")
+        for strength in latest_eval.get("strengths", []):
+            st.markdown(f"• {strength}")
     
-    # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📈 Trends", "🎯 Dimensions", "📋 Detailed Scores", "🤝 Consensus"])
+    with col2:
+        st.markdown("**🎯 Areas for Improvement:**")
+        for improvement in latest_eval.get("improvement_areas", []):
+            st.markdown(f"• {improvement}")
     
-    with tab1:
-        # Trends over time
-        if len(evaluation_results) > 1:
-            dates = [eval_data["evaluation_date"] for eval_data in evaluation_results]
-            scores = [eval_data["overall_score"] for eval_data in evaluation_results]
-            
-            fig_trends = go.Figure()
-            fig_trends.add_trace(go.Scatter(
-                x=dates,
-                y=scores,
-                mode='lines+markers',
-                name='Overall Score',
-                line=dict(color='#4ECDC4', width=3),
-                marker=dict(size=8)
-            ))
-            
-            fig_trends.update_layout(
-                title="Recommendation Quality Trends",
-                xaxis_title="Date",
-                yaxis_title="Overall Score (0-10)",
-                yaxis=dict(range=[0, 10]),
-                height=400
-            )
-            
-            st.plotly_chart(fig_trends, use_container_width=True)
-        else:
-            st.info("Need multiple evaluations to show trends")
-    
-    with tab2:
-        # Radar chart for evaluation dimensions
-        dimensions = list(latest_eval["dimension_scores"].keys())
-        scores = [latest_eval["dimension_scores"][dim]["score"] for dim in dimensions]
-        
-        fig_radar = go.Figure()
-        
-        fig_radar.add_trace(go.Scatterpolar(
-            r=scores,
-            theta=[dim.replace('_', ' ').title() for dim in dimensions],
-            fill='toself',
-            name='Current Recommendation',
-            line_color='#FF6B6B'
-        ))
-        
-        fig_radar.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    range=[0, 10]
-                )),
-            title="Evaluation Dimensions Analysis",
-            height=500
-        )
-        
-        st.plotly_chart(fig_radar, use_container_width=True)
-        
-        # Strengths and improvements
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**🌟 Strengths:**")
-            for strength in latest_eval.get("strengths", []):
-                st.markdown(f"• {strength}")
-        
-        with col2:
-            st.markdown("**🎯 Areas for Improvement:**")
-            for improvement in latest_eval.get("improvement_areas", []):
-                st.markdown(f"• {improvement}")
-    
-    with tab3:
-        # Detailed dimension scores
-        st.markdown("**Detailed Dimension Scores:**")
-        
-        dimension_data = []
-        for dim, score_info in latest_eval["dimension_scores"].items():
-            dimension_data.append({
-                "Dimension": dim.replace('_', ' ').title(),
-                "Score": f"{score_info['score']:.1f}",
-                "Max Score": f"{score_info['max_score']:.1f}",
-                "Weight": f"{score_info['weight']:.0%}",
-                "Weighted Score": f"{score_info['weighted_score']:.2f}"
-            })
-        
-        df_dimensions = pd.DataFrame(dimension_data)
-        st.dataframe(df_dimensions, use_container_width=True)
-        
-        # Detailed feedback
-        st.markdown("**Detailed Feedback:**")
-        for dim, feedback in latest_eval["detailed_feedback"].items():
-            with st.expander(f"📝 {dim.replace('_', ' ').title()}"):
-                st.write(feedback)
-    
-    with tab4:
-        # Consensus analysis
-        if consensus_data:
-            latest_consensus = consensus_data[-1]
-            
-            st.markdown("**Agent Consensus Analysis:**")
-            
-            # Consensus score visualization
-            consensus_score = latest_consensus.get("consensus_score", 0)
-            fig_consensus = go.Figure(go.Indicator(
-                mode = "gauge+number",
-                value = consensus_score,
-                domain = {'x': [0, 1], 'y': [0, 1]},
-                title = {'text': "Consensus Score"},
-                gauge = {
-                    'axis': {'range': [None, 10]},
-                    'bar': {'color': "darkblue"},
-                    'steps': [
-                        {'range': [0, 5], 'color': "lightgray"},
-                        {'range': [5, 8], 'color': "yellow"},
-                        {'range': [8, 10], 'color': "green"}
-                    ],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.75,
-                        'value': 8
-                    }
-                }
-            ))
-            
-            fig_consensus.update_layout(height=300)
-            st.plotly_chart(fig_consensus, use_container_width=True)
-            
-            # Agreement and disagreement areas
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**🤝 Agreement Areas:**")
-                for agreement in latest_consensus.get("agreement_areas", []):
-                    st.markdown(f"• {agreement}")
-            
-            with col2:
-                st.markdown("**⚠️ Disagreement Areas:**")
-                for disagreement in latest_consensus.get("disagreement_areas", []):
-                    st.markdown(f"• {disagreement}")
-        else:
-            st.info("Consensus analysis requires multiple agent recommendations")
+    # Detailed feedback for each AI dimension
+    st.markdown("**Detailed Feedback:**")
+    for dim, label in zip(ai_dims, dim_labels):
+        with st.expander(f"📝 {label}"):
+            st.write(latest_eval["detailed_feedback"][dim])
 
 
 def create_compensation_comparison_table(recommendations: Dict[str, Dict[str, Any]]) -> pd.DataFrame:

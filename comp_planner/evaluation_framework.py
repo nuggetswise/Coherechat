@@ -31,15 +31,6 @@ except ImportError:
 
 class EvaluationDimension(str, Enum):
     """Evaluation dimensions for compensation recommendations"""
-    COMPLETENESS = "completeness"
-    MARKET_COMPETITIVENESS = "market_competitiveness"
-    POLICY_COMPLIANCE = "policy_compliance"
-    INTERNAL_EQUITY = "internal_equity"
-    BUDGET_ALIGNMENT = "budget_alignment"
-    CLARITY = "clarity"
-    JUSTIFICATION_QUALITY = "justification_quality"
-    RISK_ASSESSMENT = "risk_assessment"
-    # New AI evaluation dimensions
     CONTEXT_RELEVANCE = "context_relevance"
     FAITHFULNESS = "faithfulness"
     CONTEXT_SUPPORT_COVERAGE = "context_support_coverage"
@@ -67,108 +58,9 @@ class CompensationEvaluator:
         """Setup evaluation criteria and scoring guidelines"""
         criteria = {}
         
-        criteria[EvaluationDimension.COMPLETENESS] = EvaluationCriteria(
-            dimension=EvaluationDimension.COMPLETENESS,
-            weight=0.15,
-            max_score=10.0,
-            description="Completeness of compensation package components",
-            scoring_guidelines={
-                "9-10": "Includes base salary, bonus, equity, benefits, and additional perks",
-                "7-8": "Includes base salary, bonus, and equity with some benefits",
-                "5-6": "Includes base salary and one other component",
-                "3-4": "Only base salary mentioned",
-                "0-2": "Incomplete or missing critical components"
-            }
-        )
-        
-        criteria[EvaluationDimension.MARKET_COMPETITIVENESS] = EvaluationCriteria(
-            dimension=EvaluationDimension.MARKET_COMPETITIVENESS,
-            weight=0.20,
-            max_score=10.0,
-            description="Alignment with current market rates",
-            scoring_guidelines={
-                "9-10": "Within 5% of market median, highly competitive",
-                "7-8": "Within 10% of market median, competitive",
-                "5-6": "Within 20% of market median, somewhat competitive",
-                "3-4": "20-30% deviation from market rates",
-                "0-2": "More than 30% deviation from market rates"
-            }
-        )
-        
-        criteria[EvaluationDimension.POLICY_COMPLIANCE] = EvaluationCriteria(
-            dimension=EvaluationDimension.POLICY_COMPLIANCE,
-            weight=0.15,
-            max_score=10.0,
-            description="Adherence to company compensation policies",
-            scoring_guidelines={
-                "9-10": "Fully compliant with all policies",
-                "7-8": "Minor policy deviations with valid justification",
-                "5-6": "Some policy issues that need approval",
-                "3-4": "Multiple policy violations",
-                "0-2": "Major policy violations or non-compliance"
-            }
-        )
-        
-        criteria[EvaluationDimension.INTERNAL_EQUITY] = EvaluationCriteria(
-            dimension=EvaluationDimension.INTERNAL_EQUITY,
-            weight=0.15,
-            max_score=10.0,
-            description="Fairness relative to existing employees",
-            scoring_guidelines={
-                "9-10": "Maintains excellent internal equity",
-                "7-8": "Good internal equity with minor considerations",
-                "5-6": "Some potential equity concerns",
-                "3-4": "Notable internal equity issues",
-                "0-2": "Major internal equity problems"
-            }
-        )
-        
-        criteria[EvaluationDimension.JUSTIFICATION_QUALITY] = EvaluationCriteria(
-            dimension=EvaluationDimension.JUSTIFICATION_QUALITY,
-            weight=0.15,
-            max_score=10.0,
-            description="Quality of reasoning and market analysis",
-            scoring_guidelines={
-                "9-10": "Comprehensive analysis with data-backed reasoning",
-                "7-8": "Good justification with supporting evidence",
-                "5-6": "Basic justification provided",
-                "3-4": "Weak or incomplete justification",
-                "0-2": "No justification or poor reasoning"
-            }
-        )
-        
-        criteria[EvaluationDimension.CLARITY] = EvaluationCriteria(
-            dimension=EvaluationDimension.CLARITY,
-            weight=0.10,
-            max_score=10.0,
-            description="Clarity and understandability of recommendation",
-            scoring_guidelines={
-                "9-10": "Crystal clear, well-structured, easy to understand",
-                "7-8": "Clear with minor ambiguities",
-                "5-6": "Generally clear but some confusion",
-                "3-4": "Somewhat unclear or poorly structured",
-                "0-2": "Confusing or very poorly presented"
-            }
-        )
-        
-        criteria[EvaluationDimension.RISK_ASSESSMENT] = EvaluationCriteria(
-            dimension=EvaluationDimension.RISK_ASSESSMENT,
-            weight=0.10,
-            max_score=10.0,
-            description="Identification and mitigation of risks",
-            scoring_guidelines={
-                "9-10": "Comprehensive risk analysis with mitigation strategies",
-                "7-8": "Good risk identification with some mitigation",
-                "5-6": "Basic risk assessment",
-                "3-4": "Limited risk consideration",
-                "0-2": "No risk assessment provided"
-            }
-        )
-        
-        # New AI evaluation dimensions
         criteria[EvaluationDimension.CONTEXT_RELEVANCE] = EvaluationCriteria(
             dimension=EvaluationDimension.CONTEXT_RELEVANCE,
-            weight=0.10,
+            weight=0.25,
             max_score=10.0,
             description="Relevance of the recommendation to the given context",
             scoring_guidelines={
@@ -182,7 +74,7 @@ class CompensationEvaluator:
         
         criteria[EvaluationDimension.FAITHFULNESS] = EvaluationCriteria(
             dimension=EvaluationDimension.FAITHFULNESS,
-            weight=0.10,
+            weight=0.25,
             max_score=10.0,
             description="Faithfulness to the original intent and details of the request",
             scoring_guidelines={
@@ -196,7 +88,7 @@ class CompensationEvaluator:
         
         criteria[EvaluationDimension.CONTEXT_SUPPORT_COVERAGE] = EvaluationCriteria(
             dimension=EvaluationDimension.CONTEXT_SUPPORT_COVERAGE,
-            weight=0.10,
+            weight=0.25,
             max_score=10.0,
             description="Coverage of supporting details and context",
             scoring_guidelines={
@@ -210,7 +102,7 @@ class CompensationEvaluator:
         
         criteria[EvaluationDimension.QUESTION_ANSWERABILITY] = EvaluationCriteria(
             dimension=EvaluationDimension.QUESTION_ANSWERABILITY,
-            weight=0.10,
+            weight=0.25,
             max_score=10.0,
             description="Ability to answer potential questions and objections",
             scoring_guidelines={
@@ -265,21 +157,7 @@ class CompensationEvaluator:
     def _score_dimension(self, dimension: EvaluationDimension, recommendation: Dict[str, Any], context: Dict[str, Any] = None) -> Tuple[float, str]:
         """Score a specific dimension of the recommendation"""
         
-        if dimension == EvaluationDimension.COMPLETENESS:
-            return self._score_completeness(recommendation)
-        elif dimension == EvaluationDimension.MARKET_COMPETITIVENESS:
-            return self._score_market_competitiveness(recommendation, context)
-        elif dimension == EvaluationDimension.POLICY_COMPLIANCE:
-            return self._score_policy_compliance(recommendation)
-        elif dimension == EvaluationDimension.INTERNAL_EQUITY:
-            return self._score_internal_equity(recommendation, context)
-        elif dimension == EvaluationDimension.JUSTIFICATION_QUALITY:
-            return self._score_justification_quality(recommendation)
-        elif dimension == EvaluationDimension.CLARITY:
-            return self._score_clarity(recommendation)
-        elif dimension == EvaluationDimension.RISK_ASSESSMENT:
-            return self._score_risk_assessment(recommendation)
-        elif dimension == EvaluationDimension.CONTEXT_RELEVANCE:
+        if dimension == EvaluationDimension.CONTEXT_RELEVANCE:
             return self._score_context_relevance(recommendation, context)
         elif dimension == EvaluationDimension.FAITHFULNESS:
             return self._score_faithfulness(recommendation)
@@ -289,227 +167,6 @@ class CompensationEvaluator:
             return self._score_question_answerability(recommendation)
         else:
             return 5.0, "Default scoring for unknown dimension"
-    
-    def _score_completeness(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
-        """Score completeness of compensation package"""
-        components = []
-        
-        # Check for key components
-        if recommendation.get("base_salary") or "salary" in str(recommendation).lower():
-            components.append("base_salary")
-        if recommendation.get("bonus") or "bonus" in str(recommendation).lower():
-            components.append("bonus")
-        if recommendation.get("equity") or "equity" in str(recommendation).lower() or "stock" in str(recommendation).lower():
-            components.append("equity")
-        if "benefits" in str(recommendation).lower() or "insurance" in str(recommendation).lower():
-            components.append("benefits")
-        if "vacation" in str(recommendation).lower() or "pto" in str(recommendation).lower():
-            components.append("time_off")
-        
-        component_count = len(components)
-        
-        if component_count >= 4:
-            score = 9.0 + (component_count - 4) * 0.2
-            feedback = f"Excellent completeness with {component_count} components identified"
-        elif component_count == 3:
-            score = 7.5
-            feedback = "Good completeness with major components covered"
-        elif component_count == 2:
-            score = 5.5
-            feedback = "Basic completeness, missing some important components"
-        elif component_count == 1:
-            score = 3.0
-            feedback = "Limited completeness, only one component identified"
-        else:
-            score = 1.0
-            feedback = "Poor completeness, no clear components identified"
-        
-        return min(score, 10.0), feedback
-    
-    def _score_market_competitiveness(self, recommendation: Dict[str, Any], context: Dict[str, Any]) -> Tuple[float, str]:
-        """Score market competitiveness based on available benchmarks"""
-        # This would ideally compare against real market data
-        # For now, we'll use heuristics based on the recommendation content
-        
-        rec_text = str(recommendation).lower()
-        
-        # Look for market references
-        market_indicators = [
-            "market rate", "competitive", "benchmark", "industry standard",
-            "market data", "salary survey", "levels.fyi", "glassdoor"
-        ]
-        
-        market_refs = sum(1 for indicator in market_indicators if indicator in rec_text)
-        
-        # Look for specific numbers that seem reasonable (heuristic)
-        if context and context.get("role") and context.get("level"):
-            role = context["role"].lower()
-            level = context["level"].lower()
-            
-            # Basic competitiveness heuristics
-            if "senior" in level and "engineer" in role:
-                expected_range = (160000, 250000)
-            elif "junior" in level and "engineer" in role:
-                expected_range = (100000, 140000)
-            else:
-                expected_range = (120000, 200000)  # Default range
-            
-            # Try to extract salary numbers from recommendation
-            import re
-            salary_matches = re.findall(r'\$?(\d{1,3}(?:,\d{3})*)', rec_text)
-            if salary_matches:
-                try:
-                    salaries = [int(match.replace(',', '')) for match in salary_matches if int(match.replace(',', '')) > 50000]
-                    if salaries:
-                        max_salary = max(salaries)
-                        if expected_range[0] <= max_salary <= expected_range[1]:
-                            competitiveness_score = 8.5
-                        elif expected_range[0] * 0.8 <= max_salary <= expected_range[1] * 1.2:
-                            competitiveness_score = 7.0
-                        else:
-                            competitiveness_score = 5.0
-                    else:
-                        competitiveness_score = 6.0
-                except:
-                    competitiveness_score = 6.0
-            else:
-                competitiveness_score = 5.0
-        else:
-            competitiveness_score = 6.0
-        
-        # Adjust based on market references
-        final_score = min(competitiveness_score + (market_refs * 0.5), 10.0)
-        
-        feedback = f"Market competitiveness assessed with {market_refs} market references found"
-        
-        return final_score, feedback
-    
-    def _score_policy_compliance(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
-        """Score policy compliance"""
-        rec_text = str(recommendation).lower()
-        
-        # Look for policy-related content
-        policy_indicators = [
-            "policy", "compliance", "guidelines", "approval", "budget",
-            "authorization", "standard", "exception"
-        ]
-        
-        policy_refs = sum(1 for indicator in policy_indicators if indicator in rec_text)
-        
-        # Look for potential red flags
-        red_flags = ["exceeds", "violation", "non-compliant", "over budget"]
-        flag_count = sum(1 for flag in red_flags if flag in rec_text)
-        
-        base_score = 8.0 if policy_refs > 0 else 6.5
-        penalty = flag_count * 1.5
-        
-        final_score = max(base_score - penalty, 0.0)
-        
-        feedback = f"Policy compliance score based on {policy_refs} policy references and {flag_count} potential issues"
-        
-        return final_score, feedback
-    
-    def _score_internal_equity(self, recommendation: Dict[str, Any], context: Dict[str, Any]) -> Tuple[float, str]:
-        """Score internal equity considerations"""
-        rec_text = str(recommendation).lower()
-        
-        equity_indicators = [
-            "internal equity", "fair", "consistent", "peer", "team",
-            "existing employees", "pay equity", "compensation band"
-        ]
-        
-        equity_refs = sum(1 for indicator in equity_indicators if indicator in rec_text)
-        
-        if equity_refs >= 2:
-            score = 8.5
-            feedback = "Good consideration of internal equity"
-        elif equity_refs == 1:
-            score = 6.5
-            feedback = "Some internal equity consideration"
-        else:
-            score = 5.0
-            feedback = "Limited internal equity analysis"
-        
-        return score, feedback
-    
-    def _score_justification_quality(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
-        """Score the quality of justification provided"""
-        rec_text = str(recommendation).lower()
-        
-        # Look for quality justification indicators
-        quality_indicators = [
-            "because", "due to", "based on", "analysis", "data",
-            "research", "benchmark", "market", "experience", "skills"
-        ]
-        
-        justification_score = sum(1 for indicator in quality_indicators if indicator in rec_text)
-        
-        # Check for data/numbers
-        import re
-        numbers = re.findall(r'\d+', rec_text)
-        has_quantitative = len(numbers) > 2
-        
-        base_score = min(justification_score * 1.2, 8.0)
-        if has_quantitative:
-            base_score += 1.0
-        
-        final_score = min(base_score, 10.0)
-        
-        feedback = f"Justification quality based on {justification_score} reasoning indicators and quantitative data: {has_quantitative}"
-        
-        return final_score, feedback
-    
-    def _score_clarity(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
-        """Score clarity and structure of recommendation"""
-        rec_text = str(recommendation)
-        
-        # Basic readability metrics
-        sentence_count = rec_text.count('.') + rec_text.count('!') + rec_text.count('?')
-        word_count = len(rec_text.split())
-        
-        # Structure indicators
-        structure_indicators = ['•', '-', '1.', '2.', '\n', 'Recommendation:', 'Summary:']
-        structure_score = sum(1 for indicator in structure_indicators if indicator in rec_text)
-        
-        # Calculate readability (simplified)
-        if word_count > 0 and sentence_count > 0:
-            avg_sentence_length = word_count / sentence_count
-            readability_score = max(10 - (avg_sentence_length - 15) * 0.2, 0)
-        else:
-            readability_score = 5.0
-        
-        structure_bonus = min(structure_score * 0.5, 2.0)
-        final_score = min(readability_score + structure_bonus, 10.0)
-        
-        feedback = f"Clarity score based on structure ({structure_score} indicators) and readability"
-        
-        return final_score, feedback
-    
-    def _score_risk_assessment(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
-        """Score risk assessment quality"""
-        rec_text = str(recommendation).lower()
-        
-        risk_indicators = [
-            "risk", "challenge", "concern", "mitigation", "volatility",
-            "budget constraint", "market change", "retention", "competition"
-        ]
-        
-        risk_refs = sum(1 for indicator in risk_indicators if indicator in rec_text)
-        
-        if risk_refs >= 3:
-            score = 9.0
-            feedback = "Comprehensive risk assessment"
-        elif risk_refs == 2:
-            score = 7.0
-            feedback = "Good risk consideration"
-        elif risk_refs == 1:
-            score = 5.0
-            feedback = "Basic risk awareness"
-        else:
-            score = 3.0
-            feedback = "Limited risk assessment"
-        
-        return score, feedback
     
     def _score_context_relevance(self, recommendation: Dict[str, Any], context: Dict[str, Any]) -> Tuple[float, str]:
         """Score relevance of the recommendation to the given context"""
