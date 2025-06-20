@@ -1,6 +1,6 @@
 """
-Enhanced Compensation Planner Application with CrewAI Multi-Agent System.
-Integrates all 4 phases: CrewAI agents, Cohere RAG, evaluation framework, and enhanced UI.
+Enhanced Compensation Planner Application with AI-Powered Analysis.
+Integrates RAG system, evaluation framework, and enhanced UI.
 """
 import streamlit as st
 import cohere
@@ -21,39 +21,16 @@ except ImportError:
         st.warning("RAG system not available")
         return None
 
-# Try to import CrewAI components
-try:
-    from comp_planner.crewai_agents import get_crewai_compensation_planner, CompensationContext
-    CREWAI_AVAILABLE = True
-except ImportError:
-    CREWAI_AVAILABLE = False
-    # Fallback class if CrewAI not available
-    class CompensationContext:
-        def __init__(self, role="Software Engineer", level="Junior", location="San Francisco", department="Engineering"):
-            self.role = role
-            self.level = level
-            self.location = location
-            self.department = department
-        
-        def dict(self):
-            return {
-                "role": self.role,
-                "level": self.level,
-                "location": self.location,
-                "department": self.department
-            }
-
 from comp_planner.evaluation_framework import get_compensation_evaluator, get_agent_consensus_analyzer
 from comp_planner.enhanced_ui import (
     display_enhanced_sidebar, create_evaluation_dashboard_ui, 
-    display_agent_workflow_progress, display_recommendation_comparison,
-    display_workflow_metrics, create_export_functionality
+    display_recommendation_comparison, create_export_functionality,
+    display_agent_workflow_progress, display_example_prompts
 )
 
 # Import existing modules
-from . import auth
-from . import query_router
-# Import offer_chain instead of agent_planner
+from comp_planner import auth
+from comp_planner import query_router
 from agents.offer_chain import run_compensation_planner
 from comp_planner.tool_manager import run_tool_action
 
@@ -82,10 +59,6 @@ def initialize_enhanced_systems(cohere_client):
     systems = {}
     
     try:
-        # Initialize CrewAI system
-        systems["crewai"] = get_crewai_compensation_planner(cohere_client)
-        st.session_state["crewai_system"] = systems["crewai"]
-        
         # Initialize RAG system
         systems["rag"] = get_cohere_rag_system(cohere_client)
         st.session_state["rag_system"] = systems["rag"]
@@ -101,53 +74,6 @@ def initialize_enhanced_systems(cohere_client):
     except Exception as e:
         st.error(f"Error initializing enhanced systems: {e}")
         return {}
-
-def execute_crewai_workflow(query: str, context: CompensationContext, crewai_system) -> Dict[str, Any]:
-    """Execute the CrewAI multi-agent workflow"""
-    
-    with st.spinner("🤖 Running CrewAI Multi-Agent Workflow..."):
-        
-        # Show workflow progress
-        workflow_placeholder = st.empty()
-        
-        with workflow_placeholder.container():
-            st.markdown("### 🔄 Agent Workflow in Progress")
-            
-            # Show initial status
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            status_text.text("Step 1/3: Recruitment Manager drafting offer...")
-            progress_bar.progress(33)
-            
-            # Execute the workflow
-            start_time = datetime.now()
-            result = crewai_system.execute_compensation_planning(context)
-            end_time = datetime.now()
-            
-            execution_time = (end_time - start_time).total_seconds()
-            
-            if result.get("success", False):
-                status_text.text("Step 2/3: HR Director validating policy...")
-                progress_bar.progress(66)
-                
-                status_text.text("Step 3/3: Hiring Manager approving...")
-                progress_bar.progress(100)
-                
-                status_text.text("✅ Workflow completed successfully!")
-                
-                # Add execution metrics
-                result["execution_time"] = execution_time
-                result["workflow_steps"] = 3
-                
-            else:
-                status_text.text("❌ Workflow encountered issues, using fallback...")
-                progress_bar.progress(100)
-        
-        # Clear the progress display
-        workflow_placeholder.empty()
-        
-        return result
 
 def execute_rag_enhanced_query(query: str, role: str, level: str, location: str, rag_system) -> Dict[str, Any]:
     """Execute RAG-enhanced compensation query"""
@@ -180,7 +106,7 @@ def execute_rag_enhanced_query(query: str, role: str, level: str, location: str,
         return result
 
 def main():
-    """Enhanced main function with all 4 phases integrated"""
+    """Enhanced main function with integrated multi-agent workflow and automatic evaluation"""
     
     # Initialize Cohere client
     if 'cohere_client' not in st.session_state:
@@ -191,7 +117,7 @@ def main():
     
     # Initialize enhanced systems
     if 'systems_initialized' not in st.session_state:
-        with st.spinner("🚀 Initializing enhanced compensation planning systems..."):
+        with st.spinner("🚀 Initializing compensation planning systems..."):
             systems = initialize_enhanced_systems(co_client)
             st.session_state['systems_initialized'] = True
             st.success("✅ All systems initialized successfully!")
@@ -199,101 +125,137 @@ def main():
     # Enhanced sidebar with advanced controls
     sidebar_config = display_enhanced_sidebar()
     
-    # App header
+    # App header - focused on Multi-Agent with evaluation
     st.title("💰 Enhanced Compensation Planner")
-    st.caption("🤖 CrewAI Multi-Agent System • 🔍 Cohere RAG • 📊 Evaluation Framework")
+    st.caption("🤖 Multi-Agent System with AI-Powered Evaluation")
     
-    # Mode-specific interface
-    agent_mode = sidebar_config.get("agent_mode", "CrewAI Multi-Agent")
-    
-    if agent_mode == "CrewAI Multi-Agent":
-        display_crewai_interface(co_client, sidebar_config)
-    elif agent_mode == "RAG Enhanced":
-        display_rag_interface(co_client, sidebar_config)
-    elif agent_mode == "Evaluation Mode":
-        display_evaluation_interface(co_client, sidebar_config)
-    else:
-        display_single_agent_interface(co_client, sidebar_config)
+    # Display the integrated Multi-Agent interface
+    display_integrated_interface(co_client, sidebar_config)
 
-def display_crewai_interface(co_client, config):
-    """Display CrewAI multi-agent interface"""
+def display_integrated_interface(co_client, config):
+    """Display integrated interface with Multi-Agent workflow and automatic evaluation"""
     
-    st.markdown("### 🤖 CrewAI Multi-Agent Compensation Planning")
-    st.info("This mode uses three specialized agents: Recruitment Manager → HR Director → Hiring Manager")
+    st.markdown("### 🤖 Multi-Agent Compensation Planning")
+    st.info("This system uses three specialized agents to create comprehensive compensation recommendations with automatic AI evaluation")
+    
+    # Display example prompts
+    display_example_prompts()
     
     # Input form for compensation request
-    with st.form("crewai_request"):
+    with st.form("multi_agent_request"):
         st.markdown("**Compensation Request Details:**")
         # Move text input to the top
         query_text = st.text_area(
             "Describe your compensation request (required)",
+            value=st.session_state.get("multi_agent_query_text", ""),
             placeholder="e.g. Create a compensation package for a Junior Software Engineer in San Francisco",
-            key="crewai_query_text"
+            key="multi_agent_query_text"
         )
         st.markdown("---")
         st.markdown("**Optional: Fill in details below or leave blank**")
         col1, col2 = st.columns(2)
         with col1:
-            role = st.text_input("Role/Position", value="", help="e.g., Software Engineer, Product Manager", key="crewai_role")
-            level = st.selectbox("Seniority Level", ["", "Junior", "Mid", "Senior", "Staff", "Principal", "Director"], key="crewai_level")
+            role = st.text_input("Role/Position", value="", help="e.g., Software Engineer, Product Manager", key="multi_agent_role")
+            level = st.selectbox("Seniority Level", ["", "Junior", "Mid", "Senior", "Staff", "Principal", "Director"], key="multi_agent_level")
         with col2:
-            location = st.text_input("Location", value="", help="City or Remote", key="crewai_location")
-            department = st.text_input("Department", value="", help="Department or team", key="crewai_department")
-        submitted = st.form_submit_button("🚀 Execute CrewAI Workflow")
+            location = st.text_input("Location", value="", help="City or Remote", key="multi_agent_location")
+            department = st.text_input("Department", value="", help="Department or team", key="multi_agent_department")
+        submitted = st.form_submit_button("🚀 Generate Compensation Plan", use_container_width=True)
     
     if submitted and query_text:
-        # Use dropdowns if filled, else try to extract from query_text
-        context = CompensationContext(
-            role=role or "Software Engineer",
-            level=level or "Junior",
-            location=location or "San Francisco",
-            department=department or "Engineering"
-        )
-        crewai_system = st.session_state.get("crewai_system")
-        if crewai_system:
-            workflow_result = execute_crewai_workflow(
-                query=query_text,
-                context=context,
-                crewai_system=crewai_system
-            )
-            display_agent_workflow_progress(workflow_result)
-            if workflow_result.get("success", False):
-                st.success("🎉 CrewAI workflow completed successfully!")
-                display_workflow_metrics({
-                    "execution_time": workflow_result.get("execution_time", 0),
-                    "tasks_completed": workflow_result.get("tasks_completed", 3),
-                    "agents_involved": workflow_result.get("agents_involved", []),
-                    "success": True
-                })
-                st.markdown("### 📋 Final Compensation Recommendation")
-                workflow_output = workflow_result.get("workflow_result", "")
-                if workflow_output:
-                    st.markdown(workflow_output)
-                else:
-                    fallback = workflow_result.get("fallback_recommendation", {})
-                    if fallback:
-                        display_fallback_recommendation(fallback)
-                if config.get("auto_eval", False):
-                    evaluator = st.session_state.get("evaluator")
-                    if evaluator:
-                        evaluation = evaluator.evaluate_recommendation(
-                            recommendation={"recommendation": workflow_output or fallback},
-                            context={"role": context.role, "level": context.level, "location": context.location}
-                        )
-                        st.markdown("### 📊 Automated Evaluation")
-                        create_evaluation_dashboard_ui([evaluation])
-                create_export_functionality({
-                    "workflow_result": workflow_result,
-                    "context": context.dict(),
-                    "timestamp": datetime.now().isoformat()
-                }, "crewai_workflow")
-            else:
-                st.error("❌ CrewAI workflow failed. Using fallback recommendation.")
-                fallback = workflow_result.get("fallback_recommendation", {})
-                if fallback:
-                    display_fallback_recommendation(fallback)
+        # Create context from form inputs or extract from query
+        context = {
+            "role": role or "Software Engineer",
+            "level": level or "Junior", 
+            "location": location or "San Francisco",
+            "department": department or "Engineering",
+            "query": query_text
+        }
+        
+        # Execute multi-agent workflow
+        with st.spinner("🔄 Running multi-agent compensation analysis..."):
+            workflow_result = execute_multi_agent_workflow_fallback(query_text, context, co_client)
+        
+        # Display workflow progress
+        display_agent_workflow_progress(workflow_result)
+        
+        if workflow_result.get("success", False):
+            st.success("🎉 Multi-Agent workflow completed successfully!")
+            
+            # Display the final recommendation
+            st.markdown("### 📋 Final Compensation Recommendation")
+            workflow_output = workflow_result.get("workflow_result", "")
+            if workflow_output:
+                st.markdown(workflow_output)
+            
+            # Display individual agent outputs
+            if "agent_outputs" in workflow_result:
+                with st.expander("🔍 View Individual Agent Analysis", expanded=False):
+                    agent_outputs = workflow_result["agent_outputs"]
+                    
+                    tab1, tab2, tab3 = st.tabs(["👤 Recruitment Manager", "🏢 HR Director", "👔 Hiring Manager"])
+                    
+                    with tab1:
+                        st.markdown("**Draft Compensation Package:**")
+                        st.markdown(agent_outputs.get("recruitment_manager", "No output available"))
+                    
+                    with tab2:
+                        st.markdown("**Policy Validation & Review:**")
+                        st.markdown(agent_outputs.get("hr_director", "No output available"))
+                    
+                    with tab3:
+                        st.markdown("**Final Approval Decision:**")
+                        st.markdown(agent_outputs.get("hiring_manager", "No output available"))
+            
+            # Auto-evaluation - always enabled
+            evaluator = st.session_state.get("evaluator")
+            if evaluator:
+                # Pass enhanced context for new AI dimensions
+                enhanced_context = {
+                    **context,
+                    "key_points": [f"{level} {role}", location, department],
+                    "supporting_details": ["market competitive", f"{location} rates", "internal equity"],
+                }
+                
+                # Run evaluation with enhanced context
+                st.markdown("---")
+                st.markdown("## 🧠 AI Evaluation Results")
+                
+                with st.spinner("🔍 Analyzing recommendation quality..."):
+                    evaluation = evaluator.evaluate_recommendation(
+                        recommendation={"recommendation": workflow_output},
+                        context=enhanced_context
+                    )
+                    
+                # Display evaluation dashboard
+                create_evaluation_dashboard_ui([evaluation])
+                
+                # Additional AI-specific evaluation explanation
+                with st.expander("📊 About AI Evaluation Dimensions", expanded=True):
+                    st.markdown("""
+                    ### New AI Evaluation Dimensions
+                    
+                    This evaluation framework includes advanced AI-specific dimensions:
+                    
+                    - **Context Relevance**: How well the recommendation relates to the specific role, level, and location context
+                    - **Faithfulness**: Whether the recommendation stays true to the data without hallucination
+                    - **Context Support Coverage**: How comprehensively the recommendation uses available market data
+                    - **Question Answerability**: How directly the recommendation addresses the specific compensation query
+                    """)
+            
+            # Export functionality
+            create_export_functionality({
+                "workflow_result": workflow_result,
+                "context": context,
+                "evaluation": evaluation if evaluator else None,
+                "timestamp": datetime.now().isoformat()
+            }, "compensation_analysis")
+            
         else:
-            st.error("CrewAI system not available")
+            st.error("❌ Multi-Agent workflow encountered issues. Using direct fallback recommendation.")
+            fallback = workflow_result.get("fallback_recommendation", {})
+            if fallback:
+                display_fallback_recommendation(fallback)
 
 def display_rag_interface(co_client, config):
     """Display enhanced RAG interface with dropdowns + semantic extraction + DuckDuckGo fallback"""
@@ -801,3 +763,408 @@ def display_single_agent_interface(co_client, config):
             if st.button("What's a fair salary for a Product Manager?"):
                 st.session_state.comp_messages.append({"role": "user", "content": "What's a fair salary for a Product Manager in New York?"})
                 st.experimental_rerun()
+
+def display_multi_agent_interface(co_client, config):
+    """Display Multi-Agent interface using fallback system (no CrewAI dependency)"""
+    
+    st.markdown("### 🤖 Multi-Agent Compensation Planning")
+    st.info("This mode simulates three specialized agents: Recruitment Manager → HR Director → Hiring Manager using AI-powered fallback system")
+    
+    # Input form for compensation request
+    with st.form("multi_agent_request"):
+        st.markdown("**Compensation Request Details:**")
+        # Move text input to the top
+        query_text = st.text_area(
+            "Describe your compensation request (required)",
+            value=st.session_state.get("multi_agent_query_text", ""),
+            placeholder="e.g. Create a compensation package for a Junior Software Engineer in San Francisco",
+            key="multi_agent_query_text"
+        )
+        st.markdown("---")
+        st.markdown("**Optional: Fill in details below or leave blank**")
+        col1, col2 = st.columns(2)
+        with col1:
+            role = st.text_input("Role/Position", value="", help="e.g., Software Engineer, Product Manager", key="multi_agent_role")
+            level = st.selectbox("Seniority Level", ["", "Junior", "Mid", "Senior", "Staff", "Principal", "Director"], key="multi_agent_level")
+        with col2:
+            location = st.text_input("Location", value="", help="City or Remote", key="multi_agent_location")
+            department = st.text_input("Department", value="", help="Department or team", key="multi_agent_department")
+        submitted = st.form_submit_button("🚀 Execute Multi-Agent Workflow")
+    
+    if submitted and query_text:
+        # Create context from form inputs or extract from query
+        context = {
+            "role": role or "Software Engineer",
+            "level": level or "Junior", 
+            "location": location or "San Francisco",
+            "department": department or "Engineering",
+            "query": query_text
+        }
+        
+        # Execute multi-agent workflow using fallback system
+        workflow_result = execute_multi_agent_workflow_fallback(query_text, context, co_client)
+        
+        # Display workflow progress
+        from comp_planner.enhanced_ui import display_agent_workflow_progress
+        display_agent_workflow_progress(workflow_result)
+        
+        if workflow_result.get("success", False):
+            st.success("🎉 Multi-Agent workflow completed successfully!")
+            
+            # Display the final recommendation
+            st.markdown("### 📋 Final Compensation Recommendation")
+            workflow_output = workflow_result.get("workflow_result", "")
+            if workflow_output:
+                st.markdown(workflow_output)
+            
+            # Display individual agent outputs
+            if "agent_outputs" in workflow_result:
+                with st.expander("🔍 View Individual Agent Analysis", expanded=False):
+                    agent_outputs = workflow_result["agent_outputs"]
+                    
+                    tab1, tab2, tab3 = st.tabs(["👤 Recruitment Manager", "🏢 HR Director", "👔 Hiring Manager"])
+                    
+                    with tab1:
+                        st.markdown("**Draft Compensation Package:**")
+                        st.markdown(agent_outputs.get("recruitment_manager", "No output available"))
+                    
+                    with tab2:
+                        st.markdown("**Policy Validation & Review:**")
+                        st.markdown(agent_outputs.get("hr_director", "No output available"))
+                    
+                    with tab3:
+                        st.markdown("**Final Approval Decision:**")
+                        st.markdown(agent_outputs.get("hiring_manager", "No output available"))
+            
+            # Auto-evaluation if enabled
+            evaluator = st.session_state.get("evaluator")
+            if evaluator:
+                # Pass enhanced context for new AI dimensions
+                enhanced_context = {
+                    **context,
+                    "key_points": [f"{level} {role}", location, department],
+                    "supporting_details": ["market competitive", f"{location} rates", "internal equity"],
+                }
+                
+                # Run evaluation with enhanced context
+                st.markdown("---")
+                st.markdown("## 🧠 AI Evaluation Results")
+                
+                with st.spinner("🔍 Analyzing recommendation quality..."):
+                    evaluation = evaluator.evaluate_recommendation(
+                        recommendation={"recommendation": workflow_output},
+                        context=enhanced_context
+                    )
+                    
+                # Display evaluation dashboard
+                create_evaluation_dashboard_ui([evaluation])
+                
+                # Additional AI-specific evaluation explanation
+                with st.expander("📊 About AI Evaluation Dimensions", expanded=True):
+                    st.markdown("""
+                    ### New AI Evaluation Dimensions
+                    
+                    This evaluation framework includes advanced AI-specific dimensions:
+                    
+                    - **Context Relevance**: How well the recommendation relates to the specific role, level, and location context
+                    - **Faithfulness**: Whether the recommendation stays true to the data without hallucination
+                    - **Context Support Coverage**: How comprehensively the recommendation uses available market data
+                    - **Question Answerability**: How directly the recommendation addresses the specific compensation query
+                    """)
+            
+            # Export functionality
+            create_export_functionality({
+                "workflow_result": workflow_result,
+                "context": context,
+                "evaluation": evaluation if evaluator else None,
+                "timestamp": datetime.now().isoformat()
+            }, "compensation_analysis")
+            
+        else:
+            st.error("❌ Multi-Agent workflow encountered issues. Using direct fallback recommendation.")
+            fallback = workflow_result.get("fallback_recommendation", {})
+            if fallback:
+                display_fallback_recommendation(fallback)
+
+def execute_multi_agent_workflow_fallback(query: str, context: Dict[str, Any], co_client) -> Dict[str, Any]:
+    """Execute multi-agent workflow using Cohere-powered fallback (no CrewAI)"""
+    
+    start_time = datetime.now()
+    
+    try:
+        # Get market data using the tool
+        from comp_planner.crewai_agents import MarketResearchTool
+        market_tool = MarketResearchTool()
+        market_data = market_tool._run(context["role"], context["level"], context["location"])
+        
+        # Step 1: Recruitment Manager - Draft initial offer
+        recruitment_prompt = f"""
+        You are an experienced Recruitment Manager tasked with drafting a competitive compensation offer.
+        
+        Request: {query}
+        Role: {context['level']} {context['role']}
+        Location: {context['location']}
+        Department: {context['department']}
+        
+        Market Data:
+        - Base Salary Range: ${market_data['base_salary_range']['min']:,} - ${market_data['base_salary_range']['max']:,}
+        - Market P50: ${market_data['market_percentiles']['p50']:,}
+        - Average Bonus: ${market_data['bonus_statistics']['avg_amount']:,} ({market_data['bonus_statistics']['avg_percentage']}%)
+        - Average Equity: ${market_data['equity_statistics']['avg_amount']:,} ({market_data['equity_statistics']['avg_percentage']}%)
+        
+        As a Recruitment Manager, draft a competitive compensation package that:
+        1. Attracts top talent
+        2. Is market-competitive
+        3. Includes base salary, bonus, equity, and benefits
+        4. Provides clear justification for each component
+        
+        Format as a professional draft offer.
+        """
+        
+        recruitment_response = co_client.chat(
+            model="command-r-plus",
+            message=recruitment_prompt,
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        # Step 2: HR Director - Policy validation and review
+        hr_prompt = f"""
+        You are an HR Director reviewing the following compensation package for policy compliance and internal equity.
+        
+        Original Request: {query}
+        
+        Recruitment Manager's Draft:
+        {recruitment_response.text}
+        
+        Market Context:
+        - Sample size: {market_data.get('sample_size', 0)} records
+        - Market confidence: {market_data.get('confidence', 0):.1%}
+        
+        As an HR Director, please:
+        1. Validate policy compliance
+        2. Check for internal equity considerations
+        3. Assess long-term sustainability
+        4. Recommend any necessary adjustments
+        5. Identify required approval levels
+        
+        Provide your professional HR assessment and any modifications needed.
+        """
+        
+        hr_response = co_client.chat(
+            model="command-r-plus", 
+            message=hr_prompt,
+            temperature=0.6,
+            max_tokens=800
+        )
+        
+        # Step 3: Hiring Manager - Final approval decision
+        hiring_manager_prompt = f"""
+        You are a Hiring Manager making the final decision on this compensation package.
+        
+        Original Request: {query}
+        Budget Context: Department - {context['department']}, Location - {context['location']}
+        
+        Recruitment Manager's Draft:
+        {recruitment_response.text}
+        
+        HR Director's Review:
+        {hr_response.text}
+        
+        As the Hiring Manager, please:
+        1. Consider team budget constraints
+        2. Evaluate business impact and ROI
+        3. Make final approval decision (Approved/Needs Revision/Rejected)
+        4. Provide final adjustments if needed
+        5. Include any conditions or contingencies
+        
+        Give your final decision with clear business justification.
+        """
+        
+        hiring_manager_response = co_client.chat(
+            model="command-r-plus",
+            message=hiring_manager_prompt, 
+            temperature=0.6,
+            max_tokens=800
+        )
+        
+        # Compile final recommendation
+        final_recommendation = f"""
+        ## Multi-Agent Compensation Planning Result
+        
+        **Final Approved Package for {context['level']} {context['role']} in {context['location']}**
+        
+        ### Executive Summary
+        After thorough analysis by our three-agent team, here is the final compensation recommendation:
+        
+        {hiring_manager_response.text}
+        
+        ---
+        
+        *This recommendation was developed through a comprehensive three-stage process involving market research, policy validation, and business case evaluation.*
+        """
+        
+        end_time = datetime.now()
+        execution_time = (end_time - start_time).total_seconds()
+        
+        return {
+            "success": True,
+            "workflow_result": final_recommendation,
+            "execution_time": execution_time,
+            "tasks_completed": 3,
+            "agents_involved": ["Recruitment Manager", "HR Director", "Hiring Manager"],
+            "agent_outputs": {
+                "recruitment_manager": recruitment_response.text,
+                "hr_director": hr_response.text, 
+                "hiring_manager": hiring_manager_response.text
+            },
+            "market_data": market_data,
+            "context": context
+        }
+        
+    except Exception as e:
+        # Fallback to simple recommendation
+        from comp_planner.crewai_agents import CompensationCrewAI
+        crewai_system = CompensationCrewAI(co_client)
+        
+        fallback_context = type('Context', (), {
+            'role': context['role'],
+            'level': context['level'], 
+            'location': context['location'],
+            'department': context['department']
+        })()
+        
+        fallback_recommendation = crewai_system._generate_fallback_recommendation(fallback_context)
+        
+        return {
+            "success": False,
+            "error": str(e),
+            "execution_time": (datetime.now() - start_time).total_seconds(),
+            "fallback_recommendation": fallback_recommendation,
+            "context": context
+        }
+
+def display_fallback_recommendation(fallback_data: Dict[str, Any]):
+    """Display fallback recommendation when CrewAI workflow fails"""
+    
+    st.markdown("### 💡 Fallback Compensation Recommendation")
+    st.info("CrewAI workflow encountered issues. Here's a data-driven recommendation using our fallback system:")
+    
+    if isinstance(fallback_data, dict):
+        # Display main recommendation text
+        if "recommendation" in fallback_data:
+            st.markdown("#### 📋 Recommendation")
+            st.markdown(fallback_data["recommendation"])
+        
+        # Display structured compensation data
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if "base_salary" in fallback_data:
+                salary_info = fallback_data["base_salary"]
+                if isinstance(salary_info, dict):
+                    recommended = salary_info.get("recommended", 0)
+                    st.metric("Base Salary", f"${recommended:,}")
+                    
+                    # Show range if available
+                    salary_range = salary_info.get("range", {})
+                    if salary_range:
+                        min_sal = salary_range.get("min", 0)
+                        max_sal = salary_range.get("max", 0)
+                        st.caption(f"Range: ${min_sal:,} - ${max_sal:,}")
+        
+        with col2:
+            if "bonus" in fallback_data:
+                bonus_info = fallback_data["bonus"]
+                if isinstance(bonus_info, dict):
+                    target_bonus = bonus_info.get("target", 0)
+                    st.metric("Annual Bonus", f"${target_bonus:,}")
+                    
+                    # Show percentage if available
+                    percentage = bonus_info.get("percentage", 0)
+                    if percentage:
+                        st.caption(f"{percentage:.1f}% of base")
+        
+        with col3:
+            if "equity" in fallback_data:
+                equity_info = fallback_data["equity"]
+                if isinstance(equity_info, dict):
+                    equity_value = equity_info.get("estimated_value", 0)
+                    st.metric("Equity Value", f"${equity_value:,}")
+                    
+                    # Show percentage if available
+                    equity_pct = equity_info.get("percentage", 0)
+                    if equity_pct:
+                        st.caption(f"{equity_pct:.3f}% equity")
+        
+        # Total compensation summary
+        if "total_compensation" in fallback_data:
+            total_comp = fallback_data["total_compensation"]
+            if isinstance(total_comp, dict):
+                estimated_total = total_comp.get("estimated", 0)
+                st.markdown("#### 💰 Total Compensation Package")
+                st.success(f"**Estimated Total: ${estimated_total:,}**")
+        
+        # Show confidence and source
+        col1, col2 = st.columns(2)
+        with col1:
+            confidence = fallback_data.get("confidence_score", 0)
+            st.metric("Confidence Score", f"{confidence:.1f}/10")
+        
+        with col2:
+            source = fallback_data.get("source", "unknown")
+            st.metric("Data Source", source.replace("_", " ").title())
+        
+        # Market data details in expander
+        if "market_data" in fallback_data:
+            with st.expander("📊 Market Data Details", expanded=False):
+                market_data = fallback_data["market_data"]
+                
+                if "sample_size" in market_data:
+                    st.write(f"**Sample Size**: {market_data['sample_size']} records")
+                
+                if "base_salary_range" in market_data:
+                    salary_range = market_data["base_salary_range"]
+                    st.write(f"**Market Salary Range**: ${salary_range.get('min', 0):,} - ${salary_range.get('max', 0):,}")
+                    st.write(f"**Market Average**: ${salary_range.get('avg', 0):,}")
+                
+                if "market_percentiles" in market_data:
+                    percentiles = market_data["market_percentiles"]
+                    st.write("**Market Percentiles**:")
+                    st.write(f"- 25th: ${percentiles.get('p25', 0):,}")
+                    st.write(f"- 50th: ${percentiles.get('p50', 0):,}")
+                    st.write(f"- 75th: ${percentiles.get('p75', 0):,}")
+                    st.write(f"- 90th: ${percentiles.get('p90', 0):,}")
+        
+        # Error information if available
+        if "error" in fallback_data:
+            with st.expander("⚠️ Error Details", expanded=False):
+                st.error(f"Original error: {fallback_data['error']}")
+    
+    else:
+        # Simple fallback for non-dict data
+        st.write(str(fallback_data))
+    
+    st.warning("💡 **Note**: This is a fallback recommendation. For full multi-agent validation, please try the CrewAI workflow again or check system dependencies.")
+
+if __name__ == "__main__":
+    # Set page config
+    st.set_page_config(
+        page_title="💰 Compensation Planner",
+        page_icon="💰",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Initialize Cohere client first
+    if 'cohere_client' not in st.session_state:
+        cohere_client = initialize_cohere_client()
+        if cohere_client:
+            st.session_state.cohere_client = cohere_client
+            st.session_state.cohere_api_key = get_api_keys()
+    
+    # Run the main app
+    if 'cohere_client' in st.session_state:
+        main()
+    else:
+        st.error("Failed to initialize Cohere client. Please check your API key configuration.")

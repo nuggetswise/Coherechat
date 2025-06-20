@@ -1,40 +1,43 @@
+# Curated dependencies for compensation AI app
+# Tested for compatibility - DO NOT ADD embedchain, langgraph, or litellm
+
 # Core Streamlit
-streamlit==1.40.2
+streamlit==1.36.0
 
-# AI Providers
-cohere==5.11.4
-openai
+# AI Providers - pinned compatible versions
+cohere==5.15.0
+openai==1.38.0
+google-generativeai==0.3.2
 
-# Add pre-built tiktoken to avoid build errors
-tiktoken>=0.5.1,<0.6.0  # Using an older version with pre-built wheels
+# LangChain - stable compatible versions
+langchain==0.1.13
+langchain-core==0.1.42
+langsmith==0.1.21
 
-# Specific versions that work together
-langchain
-langchain-core
-langchain-community
+# Core data validation - v1 for compatibility
+pydantic==1.10.13
 
-# CrewAI - specific working version
-crewai
-crewai-tools==0.0.1  # Using the version that successfully installed
+# Tokenization
+tiktoken==0.7.0
 
-# Data processing  
+# Data processing
 pandas==2.2.3
-numpy>=1.25.0,<2.0
-pydantic>=2.0.0,<3.0
+numpy==1.26.3
 
-# Document processing
-pypdf==4.3.1  # Keep this version since it's working
+# Document processing (only if needed)
+pypdf==4.3.1
 python-docx==1.1.2
 beautifulsoup4==4.12.3
 
 # Core utilities
 requests==2.32.4
 python-dotenv==1.0.0
-typing-extensions>=4.12.0
+typing-extensions==4.9.0
 
-# UI and Visualization
+# CrewAI Multi-Agent System (optional - has compatibility issues)
+# crewai==0.28.8
+# pysqlite3-binary==0.5.2
+# chromadb==0.4.22
+
+# UI enhancements - compatible with streamlit 1.36+
 streamlit-option-menu==0.4.0
-
-# Essential for CrewAI
-instructor
-tenacity>=8.0.0

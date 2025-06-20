@@ -13,6 +13,7 @@ import random
 from typing import Dict, Any, List, Tuple, Optional
 
 import cohere
+import streamlit as st
 from dotenv import load_dotenv
 
 # Import our new schema validation module
@@ -26,21 +27,128 @@ from comp_planner.schema_validation import (
 # Import clean prompt templates
 from comp_planner.persona_prompts import get_prompt_template
 
+# Add tokenization fallback
+def count_tokens_fallback(text):
+    """Simple token counter that approximates token count when tiktoken is not available"""
+    if not text:
+        return 0
+        
+    # Simple approximation: split on whitespace and punctuation
+    import re
+    # Count words
+    words = re.findall(r'\b\w+\b', text)
+    word_count = len(words)
+    
+    # Count punctuation and special characters
+    punct_count = len(re.findall(r'[^\w\s]', text))
+    
+    # Estimate: roughly 4 chars per token on average
+    char_count = len(text)
+    estimated_tokens = char_count / 4
+    
+    # Blend the estimates
+    return max(int(word_count * 1.3), int(estimated_tokens))
+
+# Try to import tiktoken, but use fallback if not available
+try:
+    import tiktoken
+    def count_tokens(text, model="gpt-3.5-turbo"):
+        """Count tokens using tiktoken"""
+        try:
+            encoder = tiktoken.encoding_for_model(model)
+            return len(encoder.encode(text))
+        except:
+            # Fallback to simple approximation
+            return count_tokens_fallback(text)
+except ImportError:
+    # Use fallback if tiktoken is not available
+    count_tokens = count_tokens_fallback
+
 load_dotenv()
 
-# Initialize Cohere client with API key
-co = cohere.Client(os.environ.get("COHERE_API_KEY", ""))  # Fallback to empty string
+# Initialize Cohere client lazily when needed
+co = None
+
+def get_cohere_client(api_key=None):
+    """Get or initialize the Cohere client with the provided API key or from environment"""
+    global co
+    if co is None:
+        # First try to get API key from streamlit session state (set in auth.py from secrets)
+        if "cohere_api_key" in st.session_state and st.session_state["cohere_api_key"]:
+            api_key = st.session_state["cohere_api_key"]
+        # Next try environment variable
+        elif not api_key:
+            api_key = os.environ.get("COHERE_API_KEY", "")
+        # If still no key, try direct access to secrets
+        if not api_key and hasattr(st, "secrets") and "COHERE_API_KEY" in st.secrets:
+            api_key = st.secrets["COHERE_API_KEY"]
+        
+        if not api_key:
+            raise ValueError("Cohere API key not found in secrets, session state, or environment variables")
+        
+        co = cohere.Client(api_key)
+    return co
 
 def generate_completion(messages, temperature=0.7, max_tokens=1000):
     """Generate a completion using Cohere's chat API"""
     try:
-        response = co.chat(
-            message=messages[-1]["content"] if isinstance(messages, list) else messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            preamble=messages[0]["content"] if isinstance(messages, list) and len(messages) > 0 and messages[0]["role"] == "system" else None,
-            chat_history=[{"role": msg["role"], "message": msg["content"]} for msg in messages[1:-1]] if isinstance(messages, list) and len(messages) > 1 else None
-        )
+        client = get_cohere_client()
+        
+        # Extract system message, user message and chat history
+        system_message = None
+        user_message = None
+        chat_history = []
+        
+        if isinstance(messages, list):
+            # Find system message (typically the first one)
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_message = msg["content"]
+                    break
+                    
+            # Extract chat history (all messages except system and the last one)
+            chat_history = []
+            for i, msg in enumerate(messages):
+                if i > 0 and i < len(messages) - 1 and msg["role"] != "system":
+                    chat_history.append({"role": msg["role"], "message": msg["content"]})
+                    
+            # Get user message (the last message)
+            if messages and messages[-1]["role"] != "system":
+                user_message = messages[-1]["content"]
+        else:
+            # If messages is not a list, treat it as a single user message
+            user_message = messages
+        
+        # Handle different versions of the Cohere API
+        try:
+            # Try using preamble parameter (newer versions)
+            response = client.chat(
+                message=user_message,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                preamble=system_message,
+                chat_history=chat_history if chat_history else None
+            )
+        except TypeError:
+            # Fall back to older API format without preamble
+            try:
+                # Try with system parameter instead
+                response = client.chat(
+                    message=user_message,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    system=system_message,
+                    chat_history=chat_history if chat_history else None
+                )
+            except TypeError:
+                # Oldest version without system or preamble
+                response = client.chat(
+                    message=user_message,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    chat_history=chat_history if chat_history else None
+                )
+                
         return response.text
     except Exception as e:
         print(f"Error generating completion: {e}")
@@ -410,12 +518,9 @@ def run_compensation_planner(user_query, db_data="", web_data="", uploaded_docs=
     
     Uses schema validation at each step and clean prompt templates
     """
-    # If cohere_key is provided, reinitialize the client with the provided key
-    global co
+    # If cohere_key is provided, use it to initialize the client
     if cohere_key:
-        co = cohere.Client(cohere_key)
-    elif not os.environ.get("COHERE_API_KEY"):
-        raise ValueError("Cohere API key is required but not provided. Please provide it as an argument or set the COHERE_API_KEY environment variable.")
+        get_cohere_client(cohere_key)
     
     # Step 1: Recruitment Manager generates compensation package
     recruitment_output = recruitment_manager_agent(

@@ -39,6 +39,11 @@ class EvaluationDimension(str, Enum):
     CLARITY = "clarity"
     JUSTIFICATION_QUALITY = "justification_quality"
     RISK_ASSESSMENT = "risk_assessment"
+    # New AI evaluation dimensions
+    CONTEXT_RELEVANCE = "context_relevance"
+    FAITHFULNESS = "faithfulness"
+    CONTEXT_SUPPORT_COVERAGE = "context_support_coverage"
+    QUESTION_ANSWERABILITY = "question_answerability"
 
 
 @dataclass
@@ -160,6 +165,63 @@ class CompensationEvaluator:
             }
         )
         
+        # New AI evaluation dimensions
+        criteria[EvaluationDimension.CONTEXT_RELEVANCE] = EvaluationCriteria(
+            dimension=EvaluationDimension.CONTEXT_RELEVANCE,
+            weight=0.10,
+            max_score=10.0,
+            description="Relevance of the recommendation to the given context",
+            scoring_guidelines={
+                "9-10": "Highly relevant, directly addresses context",
+                "7-8": "Mostly relevant, few minor context gaps",
+                "5-6": "Some relevance, but notable context gaps",
+                "3-4": "Limited relevance, does not fully address context",
+                "0-2": "Irrelevant or off-topic"
+            }
+        )
+        
+        criteria[EvaluationDimension.FAITHFULNESS] = EvaluationCriteria(
+            dimension=EvaluationDimension.FAITHFULNESS,
+            weight=0.10,
+            max_score=10.0,
+            description="Faithfulness to the original intent and details of the request",
+            scoring_guidelines={
+                "9-10": "Fully faithful to the request, no deviations",
+                "7-8": "Mostly faithful, minor deviations",
+                "5-6": "Somewhat faithful, but notable deviations",
+                "3-4": "Limited faithfulness, significant deviations",
+                "0-2": "Not faithful to the request"
+            }
+        )
+        
+        criteria[EvaluationDimension.CONTEXT_SUPPORT_COVERAGE] = EvaluationCriteria(
+            dimension=EvaluationDimension.CONTEXT_SUPPORT_COVERAGE,
+            weight=0.10,
+            max_score=10.0,
+            description="Coverage of supporting details and context",
+            scoring_guidelines={
+                "9-10": "Comprehensive coverage of all necessary details",
+                "7-8": "Good coverage, few minor details missing",
+                "5-6": "Some coverage, but several important details missing",
+                "3-4": "Limited coverage, many details missing",
+                "0-2": "Very poor coverage, lacks essential details"
+            }
+        )
+        
+        criteria[EvaluationDimension.QUESTION_ANSWERABILITY] = EvaluationCriteria(
+            dimension=EvaluationDimension.QUESTION_ANSWERABILITY,
+            weight=0.10,
+            max_score=10.0,
+            description="Ability to answer potential questions and objections",
+            scoring_guidelines={
+                "9-10": "Anticipates and answers all potential questions",
+                "7-8": "Covers most questions, few minor gaps",
+                "5-6": "Some questions answered, but notable gaps",
+                "3-4": "Limited question handling, many gaps",
+                "0-2": "Does not address potential questions"
+            }
+        )
+        
         return criteria
     
     def evaluate_recommendation(self, recommendation: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -217,6 +279,14 @@ class CompensationEvaluator:
             return self._score_clarity(recommendation)
         elif dimension == EvaluationDimension.RISK_ASSESSMENT:
             return self._score_risk_assessment(recommendation)
+        elif dimension == EvaluationDimension.CONTEXT_RELEVANCE:
+            return self._score_context_relevance(recommendation, context)
+        elif dimension == EvaluationDimension.FAITHFULNESS:
+            return self._score_faithfulness(recommendation)
+        elif dimension == EvaluationDimension.CONTEXT_SUPPORT_COVERAGE:
+            return self._score_context_support_coverage(recommendation, context)
+        elif dimension == EvaluationDimension.QUESTION_ANSWERABILITY:
+            return self._score_question_answerability(recommendation)
         else:
             return 5.0, "Default scoring for unknown dimension"
     
@@ -440,6 +510,82 @@ class CompensationEvaluator:
             feedback = "Limited risk assessment"
         
         return score, feedback
+    
+    def _score_context_relevance(self, recommendation: Dict[str, Any], context: Dict[str, Any]) -> Tuple[float, str]:
+        """Score relevance of the recommendation to the given context"""
+        rec_text = str(recommendation).lower()
+        
+        # Check for presence of context in the recommendation
+        if context and context.get("key_points"):
+            key_points = [point.lower() for point in context["key_points"]]
+            relevance_score = sum(1 for point in key_points if point in rec_text)
+            
+            if relevance_score == len(key_points):
+                return 10.0, "Fully addresses all key points of the context"
+            elif relevance_score > 0:
+                return 5.0 + (relevance_score / len(key_points)) * 5.0, f"Addresses {relevance_score} out of {len(key_points)} key points"
+        
+        return 0.0, "Does not address the given context"
+    
+    def _score_faithfulness(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
+        """Score faithfulness to the original intent and details of the request"""
+        rec_text = str(recommendation).lower()
+        
+        # Look for deviations from the request
+        deviations = ["not mentioned", "excluded", "ignored", "overlooked"]
+        deviation_count = sum(1 for dev in deviations if dev in rec_text)
+        
+        if deviation_count == 0:
+            return 10.0, "Fully faithful to the request"
+        elif deviation_count == 1:
+            return 7.0, "Minor deviations from the request"
+        elif deviation_count <= 3:
+            return 4.0, "Notable deviations from the request"
+        else:
+            return 0.0, "Significant deviations, not faithful to the request"
+    
+    def _score_context_support_coverage(self, recommendation: Dict[str, Any], context: Dict[str, Any]) -> Tuple[float, str]:
+        """Score coverage of supporting details and context"""
+        rec_text = str(recommendation).lower()
+        
+        # Check for supporting details
+        if context and context.get("supporting_details"):
+            details = [detail.lower() for detail in context["supporting_details"]]
+            coverage_score = sum(1 for detail in details if detail in rec_text)
+            
+            if coverage_score == len(details):
+                return 10.0, "Covers all supporting details"
+            elif coverage_score > 0:
+                return 5.0 + (coverage_score / len(details)) * 5.0, f"Covers {coverage_score} out of {len(details)} details"
+        
+        return 0.0, "Does not cover the necessary supporting details"
+    
+    def _score_question_answerability(self, recommendation: Dict[str, Any]) -> Tuple[float, str]:
+        """Score ability to answer potential questions and objections"""
+        rec_text = str(recommendation).lower()
+        
+        # Look for question handling indicators
+        question_indicators = [
+            "if", "when", "where", "how", "what if", "suppose that",
+            "considering", "assuming", "in the event that"
+        ]
+        
+        question_score = sum(1 for indicator in question_indicators if indicator in rec_text)
+        
+        # Check for completeness of answers
+        import re
+        answer_matches = re.findall(r'\$?(\d{1,3}(?:,\d{3})*)', rec_text)
+        has_complete_answers = len(answer_matches) > 2
+        
+        base_score = min(question_score * 1.2, 8.0)
+        if has_complete_answers:
+            base_score += 1.0
+        
+        final_score = min(base_score, 10.0)
+        
+        feedback = f"Question answerability based on {question_score} indicators and completeness of answers: {has_complete_answers}"
+        
+        return final_score, feedback
     
     def _identify_strengths(self, scores: Dict[str, Any]) -> List[str]:
         """Identify strengths based on dimension scores"""

@@ -513,96 +513,39 @@ def create_market_data_visualization(market_data: Dict[str, Any]) -> go.Figure:
 
 
 def display_enhanced_sidebar():
-    """Display enhanced sidebar with mode-specific controls and active mode highlight"""
+    """Display streamlined sidebar with settings for Multi-Agent mode only"""
     with st.sidebar:
-        st.markdown("### 🎛️ Advanced Controls")
-        # Mode selection with highlight
-        agent_modes = ["CrewAI Multi-Agent", "Single Agent", "RAG Enhanced", "Evaluation Mode"]
-        agent_mode = st.selectbox(
-            "Select Mode:",
-            options=agent_modes,
-            help="Choose how the compensation planning system operates"
-        )
-        # Visual highlight for active mode
-        st.markdown(f"<div style='margin-bottom:10px;'><span style='background-color:#4ECDC4;color:white;padding:4px 12px;border-radius:8px;font-weight:bold;'>Active Mode: {agent_mode}</span></div>", unsafe_allow_html=True)
-        # Show only relevant controls for the selected mode
-        if agent_mode == "Evaluation Mode":
-            st.markdown("**Evaluation Settings:**")
-            enable_auto_eval = st.checkbox("Auto-evaluate recommendations", value=True)
-            eval_dimensions = st.multiselect(
-                "Evaluation Dimensions:",
-                options=["Completeness", "Market Competitiveness", "Policy Compliance", "Internal Equity", "Justification Quality", "Clarity", "Risk Assessment"],
-                default=["Completeness", "Market Competitiveness", "Policy Compliance"]
-            )
-        else:
-            enable_auto_eval = False
-            eval_dimensions = []
-        if agent_mode == "RAG Enhanced":
-            st.markdown("**RAG Settings:**")
-            search_k = st.slider("Search Results", min_value=3, max_value=20, value=5)
-            rerank_enabled = st.checkbox("Enable Reranking", value=True)
-        else:
-            search_k = 5
-            rerank_enabled = True
-        # Data source controls (show for all modes)
+        st.markdown("### Settings")
+        
+        # AI evaluation toggle (always enabled, just for user awareness)
+        ai_eval_enabled = st.checkbox("AI evaluation", value=True, help="Automatic AI evaluation of all recommendations")
+        
+        # Data sources (fixed, not editable)
         st.markdown("**Data Sources:**")
-        data_sources = st.multiselect(
-            "Active Data Sources:",
-            options=["Internal Database", "Cohere RAG", "Web Search", "Market APIs"],
-            default=["Internal Database", "Cohere RAG"]
-        )
-        # Quick actions
-        st.markdown("**Quick Actions:**")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔄 Reset"):
-                st.session_state.clear()
-                st.experimental_rerun()
-        with col2:
-            if st.button("📊 Dashboard"):
-                st.session_state["show_dashboard"] = True
-        # System status
-        st.markdown("### 📊 System Status")
-        status_data = {
-            "CrewAI": "🟢 Active",
-            "Cohere RAG": "🟢 Active",
-            "Vector DB": "🟢 Connected",
-            "Evaluation": "🟢 Ready"
-        }
-        for system, status in status_data.items():
-            st.markdown(f"**{system}**: {status}")
+        st.markdown("- Internal Database\n- Web Search (fallback)")
+        
+        # No quick actions, dashboard, or mode text
         return {
-            "agent_mode": agent_mode,
-            "data_sources": data_sources,
-            "auto_eval": enable_auto_eval,
-            "eval_dimensions": eval_dimensions,
-            "search_k": search_k,
-            "rerank_enabled": rerank_enabled
+            "agent_mode": "Multi-Agent",
+            "ai_eval_enabled": ai_eval_enabled
         }
 
 
-def display_workflow_metrics(workflow_data: Dict[str, Any]):
-    """Display workflow performance metrics"""
-    
-    st.markdown("### ⚡ Workflow Performance")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        execution_time = workflow_data.get("execution_time", 0)
-        st.metric("Execution Time", f"{execution_time:.1f}s")
-    
-    with col2:
-        tasks_completed = workflow_data.get("tasks_completed", 0)
-        st.metric("Tasks Completed", tasks_completed)
-    
-    with col3:
-        agents_involved = len(workflow_data.get("agents_involved", []))
-        st.metric("Agents Used", agents_involved)
-    
-    with col4:
-        success_rate = 100 if workflow_data.get("success", False) else 0
-        st.metric("Success Rate", f"{success_rate}%")
+def display_example_prompts():
+    """Show example prompt buttons that auto-fill the main prompt field"""
+    st.markdown("### 💡 Example Prompts:")
+    examples = [
+        "Create a compensation package for a Senior Data Scientist in New York",
+        "What is a fair offer for a Junior Product Manager in Austin?",
+        "Recommend a total compensation for a Staff Software Engineer in Seattle",
+        "Draft a competitive package for a Principal Designer in San Francisco"
+    ]
+    cols = st.columns(len(examples))
+    for i, prompt in enumerate(examples):
+        with cols[i]:
+            if st.button(prompt, key=f"ex_{i}"):
+                st.session_state["multi_agent_query_text"] = prompt
+                st.experimental_rerun()
 
 
 def create_export_functionality(data: Dict[str, Any], filename_prefix: str = "compensation_analysis"):
