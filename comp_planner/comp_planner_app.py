@@ -1024,31 +1024,19 @@ def execute_multi_agent_workflow_fallback(query: str, context: Dict[str, Any], c
         
     except Exception as e:
         # Fallback to simple recommendation
-        from comp_planner.crewai_agents import CompensationCrewAI
-        crewai_system = CompensationCrewAI(co_client)
-        
-        fallback_context = type('Context', (), {
-            'role': context['role'],
-            'level': context['level'], 
-            'location': context['location'],
-            'department': context['department']
-        })()
-        
-        fallback_recommendation = crewai_system._generate_fallback_recommendation(fallback_context)
-        
         return {
             "success": False,
             "error": str(e),
             "execution_time": (datetime.now() - start_time).total_seconds(),
-            "fallback_recommendation": fallback_recommendation,
+            "fallback_recommendation": "Unable to generate recommendation due to system error.",
             "context": context
         }
 
 def display_fallback_recommendation(fallback_data: Dict[str, Any]):
-    """Display fallback recommendation when CrewAI workflow fails"""
+    """Display fallback recommendation when workflow fails"""
     
     st.markdown("### 💡 Fallback Compensation Recommendation")
-    st.info("CrewAI workflow encountered issues. Here's a data-driven recommendation using our fallback system:")
+    st.info("Workflow encountered issues. Here's a data-driven recommendation using our fallback system:")
     
     if isinstance(fallback_data, dict):
         # Display main recommendation text
@@ -1145,17 +1133,9 @@ def display_fallback_recommendation(fallback_data: Dict[str, Any]):
         # Simple fallback for non-dict data
         st.write(str(fallback_data))
     
-    st.warning("💡 **Note**: This is a fallback recommendation. For full multi-agent validation, please try the CrewAI workflow again or check system dependencies.")
+    st.warning("💡 **Note**: This is a fallback recommendation. Please check system dependencies and try again.")
 
 if __name__ == "__main__":
-    # Set page config
-    st.set_page_config(
-        page_title="💰 Compensation Planner",
-        page_icon="💰",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-    
     # Initialize Cohere client first
     if 'cohere_client' not in st.session_state:
         cohere_client = initialize_cohere_client()

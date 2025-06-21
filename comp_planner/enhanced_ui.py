@@ -436,7 +436,7 @@ def display_example_prompts():
         with cols[i]:
             if st.button(prompt, key=f"ex_{i}"):
                 st.session_state["multi_agent_query_text"] = prompt
-                st.experimental_rerun()
+                st.rerun()
 
 
 def create_export_functionality(data: Dict[str, Any], filename_prefix: str = "compensation_analysis"):

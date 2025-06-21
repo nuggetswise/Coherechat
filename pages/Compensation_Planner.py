@@ -1,25 +1,21 @@
 """
 Enhanced Compensation Assistant
 Combines comprehensive agent capabilities with an HR-friendly interface
-Now with CrewAI Multi-Agent System, Cohere RAG, and Evaluation Framework
+Now with Cohere RAG and Evaluation Framework
 """
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Apply SQLite patch first thing
-from apply_patches import patch_sqlite_for_chromadb
-patch_sqlite_for_chromadb()
-
 import streamlit as st
 
 # Set page config with mobile responsiveness - MUST BE THE FIRST STREAMLIT COMMAND
-st.set_page_config(
-    page_title="Compensation Planner (Multi-Agent)",
-    page_icon="💰",
-    layout="wide",
-    initial_sidebar_state="collapsed"  # Better for mobile
-)
+# st.set_page_config(
+#     page_title="Compensation Planner (Multi-Agent)",
+#     page_icon="💰",
+#     layout="wide",
+#     initial_sidebar_state="collapsed"  # Better for mobile
+# )
 
 import cohere
 import uuid
@@ -47,7 +43,7 @@ if parent_dir not in sys.path:
 try:
     from comp_planner.comp_planner_app import (
         initialize_cohere_client, 
-        display_crewai_interface, display_rag_interface, 
+        display_rag_interface, 
         display_evaluation_interface, display_single_agent_interface
     )
 except ImportError as e:
@@ -57,8 +53,6 @@ except ImportError as e:
     # Define fallback functions
     def initialize_cohere_client():
         return None
-    def display_crewai_interface(*args, **kwargs):
-        st.error("CrewAI interface not available")
     def display_rag_interface(*args, **kwargs):
         st.error("RAG interface not available")
     def display_evaluation_interface(*args, **kwargs):

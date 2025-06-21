@@ -14,9 +14,6 @@ gatherUsageStats = false
 
 [global]
 showWarningOnDirectExecution = false
-disableWatchdogWarning = true
 
-[ui]
-hideTopBar = false
-hideSidebarNav = false
-navBarTitle = "Coherechat Dashboard"
+[client]
+showSidebarNavigation = false

@@ -1,254 +1,181 @@
 """
-Streamlit app dependency checker
-Runs automatically when the streamlit app launches to verify critical dependencies
+Dependency Check Module
+Validates that all required dependencies are available and properly configured.
 """
-import streamlit as st
-import os
+
 import sys
+import subprocess
 import importlib
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
-# CRITICAL: Apply SQLite patch at the very beginning before any imports
-try:
-    # First try to import and use pysqlite3
-    __import__('pysqlite3')
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-    print("✅ SQLite patch applied in dependency_check.py")
-except ImportError:
-    # If pysqlite3 is not available, try setting environment variable for ChromaDB
-    try:
-        os.environ['CHROMA_DB_IMPL'] = 'duckdb+parquet'
-        print("ℹ️ Set ChromaDB to use DuckDB backend instead of SQLite")
-    except Exception:
-        print("⚠️ Failed to apply SQLite patches - this may cause issues")
+# Define required dependencies with version constraints
+REQUIRED_DEPENDENCIES = {
+    "streamlit": ">=1.36.0",
+    "cohere": ">=5.15.0", 
+    "openai": ">=1.38.0",
+    "langchain": ">=0.1.13",
+    "langchain_core": ">=0.1.42",
+    "pandas": ">=2.2.3",
+    "numpy": ">=1.26.3",
+    "pydantic": ">=1.10.13",
+    "requests": ">=2.32.4",
+    "dotenv": ">=1.0.0"
+}
 
-# List of critical dependencies with versions
-CRITICAL_DEPS = {
-    "chromadb": ">=0.4.18",
-    "cohere": ">=5.0.0",
-    "pandas": ">=2.0.0",
-    "crewai": ">=0.28.0"
+# Optional dependencies that enhance functionality
+OPTIONAL_DEPENDENCIES = {
+    "tiktoken": ">=0.5.0",
+    "pypdf": ">=4.3.1",
+    "docx": ">=1.1.2",
+    "bs4": ">=4.12.3",
+    "streamlit_option_menu": ">=0.4.0"
 }
 
 def check_sqlite_version() -> Tuple[bool, str]:
-    """Check if SQLite version meets ChromaDB requirements"""
+    """Check if SQLite version meets requirements"""
     try:
         import sqlite3
         version = sqlite3.sqlite_version
-        version_info = tuple(map(int, version.split('.')))
-        required_version = (3, 35, 0)
+        version_tuple = tuple(map(int, version.split('.')))
         
-        # Check if we're using pysqlite3
-        using_pysqlite3 = 'pysqlite3' in sys.modules
-        
-        if version_info >= required_version:
-            return True, f"SQLite version {version} meets ChromaDB requirements"
-        elif using_pysqlite3:
-            # If we're using pysqlite3 but version check shows lower version,
-            # it means the patch wasn't fully applied
-            return False, f"SQLite version {version} reported, but pysqlite3 patch might not be working correctly"
+        # Check if version is at least 3.35.0
+        if version_tuple >= (3, 35, 0):
+            return True, f"SQLite version {version} meets requirements"
         else:
-            return False, f"SQLite version {version} is too old (ChromaDB requires >= 3.35.0)"
+            return False, f"SQLite version {version} is too old (requires >= 3.35.0)"
     except Exception as e:
-        return False, f"Failed to check SQLite version: {str(e)}"
+        return False, f"Error checking SQLite version: {str(e)}"
 
-def check_dependency(name: str) -> bool:
-    """Check if a dependency is installed"""
+def check_dependency(name: str, version_constraint: str) -> Tuple[bool, str, str]:
+    """Check if a dependency is available and meets version requirements"""
     try:
-        # Special handling for ChromaDB which can raise RuntimeError
-        if name == "chromadb":
-            try:
-                # Check SQLite version first
-                sqlite_ok, sqlite_msg = check_sqlite_version()
-                if not sqlite_ok:
-                    st.error(f"""
-                    ## ❌ SQLite Version Error
-                    
-                    {sqlite_msg}
-                    
-                    ### This is a common issue with ChromaDB
-                    
-                    ChromaDB requires SQLite 3.35.0 or higher, but your system has an older version.
-                    
-                    ### How to Fix:
-                    
-                    1. **Option 1**: Install pysqlite3 package (recommended):
-                    ```
-                    pip install pysqlite3-binary
-                    ```
-                    
-                    2. **Option 2**: Upgrade your system's SQLite (may require admin rights):
-                    ```
-                    # On Ubuntu/Debian:
-                    sudo apt-get update && sudo apt-get install sqlite3
-                    
-                    # On macOS with Homebrew:
-                    brew install sqlite
-                    ```
-                    
-                    For more details, visit: https://docs.trychroma.com/troubleshooting#sqlite
-                    """)
-                    return False
-                
-                importlib.import_module(name)
-                return True
-            except RuntimeError as e:
-                # Check if it's the SQLite error
-                if "unsupported version of sqlite3" in str(e):
-                    st.error(f"""
-                    ## ❌ SQLite Version Error
-                    
-                    ChromaDB requires SQLite 3.35.0 or higher, but your system has an older version.
-                    
-                    Error importing crewai: {str(e)}
-                    
-                    ### How to Fix:
-                    
-                    1. **Option 1**: Install pysqlite3 package (recommended):
-                    ```
-                    pip install pysqlite3-binary
-                    ```
-                    
-                    2. **Option 2**: Upgrade your system's SQLite (may require admin rights):
-                    ```
-                    # On Ubuntu/Debian:
-                    sudo apt-get update && sudo apt-get install sqlite3
-                    
-                    # On macOS with Homebrew:
-                    brew install sqlite
-                    ```
-                    
-                    For more details, visit: https://docs.trychroma.com/troubleshooting#sqlite
-                    """)
-                else:
-                    # This is likely a ChromaDB dependency issue
-                    st.error(f"""
-                    ## ❌ ChromaDB Dependency Error
-                    
-                    ChromaDB is installed but raised an error during import: 
-                    
-                    ```
-                    {str(e)}
-                    ```
-                    
-                    ### Common Solutions:
-                    
-                    1. Install required dependencies:
-                    ```
-                    pip install chromadb>=0.4.22 onnxruntime>=1.16.0 tokenizers>=0.13.3
-                    ```
-                    
-                    2. If on Apple Silicon Mac, try:
-                    ```
-                    pip install --upgrade onnxruntime
-                    ```
-                    
-                    3. If you're on a resource-constrained environment:
-                    ```
-                    ONNX_PROVIDER=CPU pip install --upgrade chromadb
-                    ```
-                    """)
-                return False
-        else:
-            # Normal import for other packages
-            importlib.import_module(name)
-            return True
-    except ImportError:
-        return False
+        # Try to import the module
+        module = importlib.import_module(name)
+        
+        # Get version if available
+        version = getattr(module, '__version__', 'unknown')
+        
+        # For now, just check if it's importable
+        # In a production system, you'd want to use packaging.version to check constraints
+        return True, version, f"✅ {name} {version} is available"
+        
+    except ImportError as e:
+        return False, "not installed", f"❌ {name} is not installed: {str(e)}"
     except Exception as e:
-        # General exception handler for other unexpected errors
-        st.error(f"Error importing {name}: {str(e)}")
-        return False
+        # Special handling for packages that can raise RuntimeError
+        if name == "chromadb":
+            return False, "error", f"❌ {name} import failed: {str(e)}"
+        else:
+            return False, "error", f"❌ {name} import failed: {str(e)}"
 
-def verify_dependencies() -> Tuple[bool, List[str]]:
-    """Verify all critical dependencies are installed"""
-    missing = []
-    for dep in CRITICAL_DEPS:
-        if not check_dependency(dep):
-            missing.append(dep)
-    return len(missing) == 0, missing
-
-def verify_api_keys() -> Tuple[bool, List[str]]:
-    """Verify that necessary API keys are set"""
-    required_keys = {
-        "OPENAI_API_KEY": ["openai", "OPENAI_API_KEY"],
-        "COHERE_API_KEY": ["cohere", "COHERE_API_KEY"]
+def run_dependency_check() -> Dict[str, Any]:
+    """Run comprehensive dependency check"""
+    results = {
+        "required": {},
+        "optional": {},
+        "sqlite": {},
+        "overall_status": "unknown"
     }
-    missing = []
     
-    # Check for keys in various locations
-    for key, nested_path in required_keys.items():
-        # Check in environment variables first
-        if os.environ.get(key):
-            continue
-            
-        # Check in Streamlit secrets (both flat and nested structure)
-        if hasattr(st, "secrets"):
-            # Check direct access first
-            if key in st.secrets:
-                continue
-                
-            # Check nested section
-            section = nested_path[0]
-            section_key = nested_path[1]
-            
-            if section in st.secrets and section_key in st.secrets[section]:
-                continue
-                
-        # If we get here, the key wasn't found anywhere
-        missing.append(key)
-            
-    return len(missing) == 0, missing
+    # Check required dependencies
+    print("🔍 Checking required dependencies...")
+    for dep_name, version_constraint in REQUIRED_DEPENDENCIES.items():
+        available, version, message = check_dependency(dep_name, version_constraint)
+        results["required"][dep_name] = {
+            "available": available,
+            "version": version,
+            "message": message,
+            "required_version": version_constraint
+        }
+        print(f"  {message}")
+    
+    # Check optional dependencies
+    print("\n🔍 Checking optional dependencies...")
+    for dep_name, version_constraint in OPTIONAL_DEPENDENCIES.items():
+        available, version, message = check_dependency(dep_name, version_constraint)
+        results["optional"][dep_name] = {
+            "available": available,
+            "version": version,
+            "message": message,
+            "required_version": version_constraint
+        }
+        print(f"  {message}")
+    
+    # Check SQLite version
+    print("\n🔍 Checking SQLite version...")
+    sqlite_ok, sqlite_message = check_sqlite_version()
+    results["sqlite"] = {
+        "available": sqlite_ok,
+        "message": sqlite_message
+    }
+    print(f"  {sqlite_message}")
+    
+    # Determine overall status
+    required_failures = [dep for dep, info in results["required"].items() if not info["available"]]
+    optional_failures = [dep for dep, info in results["optional"].items() if not info["available"]]
+    
+    if required_failures:
+        results["overall_status"] = "failed"
+        print(f"\n❌ Dependency check failed. Missing required dependencies: {', '.join(required_failures)}")
+        print("   Please install missing dependencies: pip install -r requirements-minimal.txt")
+    else:
+        results["overall_status"] = "passed"
+        print(f"\n✅ All required dependencies are available!")
+        
+        # Provide guidance for missing optional dependencies
+        if optional_failures:
+            print(f"\n⚠️  Some optional dependencies are missing: {', '.join(optional_failures)}")
+            if "tiktoken" in optional_failures:
+                print("   Note: tiktoken build issues are common on Python 3.13+ and Linux systems")
+                print("   The app works perfectly without tiktoken. If you need it, try:")
+                print("   - pip install tiktoken --no-build-isolation")
+                print("   - or use Python 3.11/3.12 instead of 3.13+")
+            print("   These are optional and won't affect core functionality.")
+    
+    return results
 
-def show_dependency_warning(missing_deps: List[str], missing_keys: List[str]):
-    """Show a warning about missing dependencies or API keys"""
-    st.error("⚠️ Critical dependencies or API keys are missing!")
+def display_dependency_status(results: Dict[str, Any]):
+    """Display dependency status in a user-friendly format"""
+    import streamlit as st
     
-    if missing_deps:
-        st.markdown("### Missing Dependencies")
-        st.markdown("The following critical dependencies are missing:")
-        for dep in missing_deps:
-            st.markdown(f"- `{dep}` {CRITICAL_DEPS[dep]}")
-        
-        st.markdown("### How to Fix")
-        st.code(f"pip install {' '.join([f'{dep}{CRITICAL_DEPS[dep]}' for dep in missing_deps])}")
-        
-    if missing_keys:
-        st.markdown("### Missing API Keys")
-        st.markdown("The following API keys are missing:")
-        for key in missing_keys:
-            st.markdown(f"- `{key}`")
-        
-        st.markdown("### How to Set API Keys")
-        st.markdown("""
-        You can set API keys in one of these ways:
-        1. Add them to your environment variables
-        2. Add them to `.streamlit/secrets.toml` file using either format:
-        """)
-        
-        # Flat format example
-        flat_example = "\n".join([f"{key} = 'your-{key.lower()}-here'" for key in missing_keys])
-        
-        # Nested format example (matches your current structure)
-        nested_example = ""
-        if "OPENAI_API_KEY" in missing_keys:
-            nested_example += "[openai]\nOPENAI_API_KEY = 'your-openai-api-key-here'\n\n"
-        if "COHERE_API_KEY" in missing_keys:
-            nested_example += "[cohere]\nCOHERE_API_KEY = 'your-cohere-api-key-here'"
-        
-        st.code("# Flat structure (either works):\n" + flat_example, language="toml")
-        st.code("# Nested structure (recommended):\n" + nested_example, language="toml")
+    st.markdown("## 🔍 Dependency Status")
     
-    st.markdown("### Run Dependency Check Script")
-    st.markdown("For a more detailed dependency check, run:")
-    st.code("python test_chromadb_import.py")
+    # Required dependencies
+    st.markdown("### Required Dependencies")
+    for dep_name, info in results["required"].items():
+        if info["available"]:
+            st.success(f"✅ {dep_name} {info['version']}")
+        else:
+            st.error(f"❌ {dep_name}: {info['message']}")
     
-    st.stop()
+    # Optional dependencies
+    st.markdown("### Optional Dependencies")
+    for dep_name, info in results["optional"].items():
+        if info["available"]:
+            st.success(f"✅ {dep_name} {info['version']}")
+        else:
+            st.warning(f"⚠️ {dep_name}: {info['message']}")
+    
+    # SQLite status
+    st.markdown("### System Dependencies")
+    if results["sqlite"]["available"]:
+        st.success(f"✅ SQLite: {results['sqlite']['message']}")
+    else:
+        st.warning(f"⚠️ SQLite: {results['sqlite']['message']}")
+    
+    # Overall status
+    if results["overall_status"] == "passed":
+        st.success("🎉 All required dependencies are available!")
+        
+        # Show guidance for missing optional dependencies
+        optional_failures = [dep for dep, info in results["optional"].items() if not info["available"]]
+        if optional_failures:
+            st.warning(f"⚠️ Some optional dependencies are missing: {', '.join(optional_failures)}")
+            if "tiktoken" in optional_failures:
+                st.info("💡 **tiktoken** build issues are common on Python 3.13+ and Linux systems. The app works perfectly without it.")
+    else:
+        st.error("❌ Some required dependencies are missing. Please install them.")
 
-def run_dependency_check():
-    """Run dependency check before loading the main app"""
-    deps_ok, missing_deps = verify_dependencies()
-    keys_ok, missing_keys = verify_api_keys()
-    
-    if not (deps_ok and keys_ok):
-        show_dependency_warning(missing_deps, missing_keys)
+if __name__ == "__main__":
+    results = run_dependency_check()
+    print(f"\nOverall status: {results['overall_status']}")

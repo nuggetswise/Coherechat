@@ -1,6 +1,3 @@
-# Curated dependencies for compensation AI app
-# Tested for compatibility - DO NOT ADD embedchain, langgraph, or litellm
-
 # Core Streamlit
 streamlit==1.36.0
 
@@ -14,11 +11,8 @@ langchain==0.1.13
 langchain-core==0.1.42
 langsmith==0.1.21
 
-# Core data validation - v1 for compatibility
-pydantic==1.10.13
-
-# Tokenization - optional due to build issues on Python 3.13+ and Linux
-# tiktoken>=0.5.0
+# Core data validation - compatible version
+pydantic>=2.4.2,<3.0.0
 
 # Data processing
 pandas==2.2.3
@@ -38,5 +32,6 @@ typing-extensions==4.9.0
 streamlit-option-menu==0.4.0
 
 # Note: CrewAI and ChromaDB removed - not used in main workflow
-# Note: tiktoken is commented out due to build issues on Python 3.13+ and Linux systems
-# If you need tiktoken, try: pip install tiktoken --no-build-isolation
+# Note: tiktoken is excluded due to build issues on Python 3.13+ and some Linux systems
+# The app will work without it, just with token counting warnings
+# If you need tiktoken, try: pip install tiktoken --no-build-isolation 
