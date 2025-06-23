@@ -48,8 +48,8 @@ try:
     )
 except ImportError as e:
     import traceback
-    st.error(f"Error importing components: {str(e)}")
-    st.code(traceback.format_exc())
+    # st.error(f"Error importing components: {str(e)}")
+    # st.code(traceback.format_exc())
     # Define fallback functions
     def initialize_cohere_client():
         return None
