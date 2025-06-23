@@ -9,13 +9,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-# Set page config with mobile responsiveness - MUST BE THE FIRST STREAMLIT COMMAND
-# st.set_page_config(
-#     page_title="Compensation Planner (Multi-Agent)",
-#     page_icon="💰",
-#     layout="wide",
-#     initial_sidebar_state="collapsed"  # Better for mobile
-# )
+# Set page config for mobile-native experience
+st.set_page_config(
+    page_title="Compensation Planner (Multi-Agent)",
+    page_icon="💰",
+    layout="centered",
+    initial_sidebar_state="expanded"  # Always keep sidebar open
+)
 
 import cohere
 import uuid
@@ -599,13 +599,32 @@ def main():
     # --- Sidebar: Data Source Status ---
     st.sidebar.title("Data Sources")
     internal_db_status = os.path.exists("data/Compensation Data.csv")
-    st.sidebar.markdown(f"**Internal Database:** {'🟢 Available' if internal_db_status else '🔴 Missing'}")
+    # Use Streamlit's built-in page navigation for the database link
+    if internal_db_status:
+        db_link = '[🟢 Available — View Data](Internal_Database)'
+    else:
+        db_link = '🔴 Missing'
+    st.sidebar.markdown(f"**Internal Database:** {db_link}", unsafe_allow_html=True)
     st.sidebar.markdown("**Web Fallback:** 🌐 DuckDuckGo enabled")
 
     # Show API keys for verification (remove in production)
     openai_key, cohere_key = get_api_keys()
     st.sidebar.markdown(f"**OpenAI Key:** {'✅' if openai_key else '❌ Not found'}")
     st.sidebar.markdown(f"**Cohere Key:** {'✅' if cohere_key else '❌ Not found'}")
+
+    # --- Show Internal DB Preview ---
+    if internal_db_status:
+        if 'show_db_preview' not in st.session_state:
+            st.session_state['show_db_preview'] = False
+        if st.sidebar.button('Show Internal Database Preview'):
+            st.session_state['show_db_preview'] = not st.session_state['show_db_preview']
+        if st.session_state['show_db_preview']:
+            try:
+                df_preview = pd.read_csv('data/Compensation Data.csv').head(20)
+                st.sidebar.markdown('**Internal Database Preview (first 20 rows):**')
+                st.sidebar.dataframe(df_preview, use_container_width=True)
+            except Exception as e:
+                st.sidebar.warning(f"Could not load database: {e}")
 
     # Initialize session state for tutorial
     if "seen_tutorial" not in st.session_state:
