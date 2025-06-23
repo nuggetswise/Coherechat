@@ -68,7 +68,7 @@ streamlit run pages/Compensation_Planner.py
 
 ## API Keys Required
 
-The application requires the following API keys:
+The application requires the following API keys. I used Gemini as primary as it parses the content better than others
 
 ### **Cohere API Key** (Required)
 - Used for the main AI agent workflow
